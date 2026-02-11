@@ -1,10 +1,8 @@
 from __future__ import annotations
-
 import asyncio
 import contextlib
 import signal
 from collections.abc import Callable
-
 
 def install_sigint_handler(
     loop: asyncio.AbstractEventLoop, handler: Callable[[], None]

@@ -1,24 +1,27 @@
-"""Skill specification discovery and loading utilities."""
-
 from __future__ import annotations
-
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Literal
-
 from kaos import get_current_kaos
 from kaos.local import local_kaos
 from kaos.path import KaosPath
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
-
 from kimi_cli.skill.flow import Flow, FlowError
 from kimi_cli.skill.flow.d2 import parse_d2_flowchart
 from kimi_cli.skill.flow.mermaid import parse_mermaid_flowchart
 from kimi_cli.utils.frontmatter import parse_frontmatter
 
-SkillType = Literal["standard", "flow"]
+"""Skill specification discovery and loading utilities."""
 
+async def find_first_existing_dir(candidates: Iterable[KaosPath]) -> KaosPath | None:
+    """
+    Return the first existing directory from candidates.
+    """
+    for candidate in candidates:
+        if await candidate.is_dir():
+            return candidate
+    return None
 
 def get_builtin_skills_dir() -> Path:
     """
@@ -26,6 +29,22 @@ def get_builtin_skills_dir() -> Path:
     """
     return Path(__file__).parent.parent / "skills"
 
+def get_project_skills_dir_candidates(work_dir: KaosPath) -> tuple[KaosPath, ...]:
+    """
+    Get project-level skills directory candidates in priority order.
+    """
+    return (
+        work_dir / ".agents" / "skills",
+        work_dir / ".kimi" / "skills",
+        work_dir / ".claude" / "skills",
+        work_dir / ".codex" / "skills",
+    )
+
+async def find_project_skills_dir(work_dir: KaosPath) -> KaosPath | None:
+    """
+    Return the first existing project-level skills directory.
+    """
+    return await find_first_existing_dir(get_project_skills_dir_candidates(work_dir))
 
 def get_user_skills_dir_candidates() -> tuple[KaosPath, ...]:
     """
@@ -39,48 +58,55 @@ def get_user_skills_dir_candidates() -> tuple[KaosPath, ...]:
         KaosPath.home() / ".codex" / "skills",
     )
 
-
-def get_project_skills_dir_candidates(work_dir: KaosPath) -> tuple[KaosPath, ...]:
-    """
-    Get project-level skills directory candidates in priority order.
-    """
-    return (
-        work_dir / ".agents" / "skills",
-        work_dir / ".kimi" / "skills",
-        work_dir / ".claude" / "skills",
-        work_dir / ".codex" / "skills",
-    )
-
-
-def _supports_builtin_skills() -> bool:
-    """Return True when the active KAOS backend can read bundled skills."""
-    current_name = get_current_kaos().name
-    return current_name in (local_kaos.name, "acp")
-
-
-async def find_first_existing_dir(candidates: Iterable[KaosPath]) -> KaosPath | None:
-    """
-    Return the first existing directory from candidates.
-    """
-    for candidate in candidates:
-        if await candidate.is_dir():
-            return candidate
-    return None
-
-
 async def find_user_skills_dir() -> KaosPath | None:
     """
     Return the first existing user-level skills directory.
     """
     return await find_first_existing_dir(get_user_skills_dir_candidates())
 
+class Skill(BaseModel):
+    """Information about a single skill."""
 
-async def find_project_skills_dir(work_dir: KaosPath) -> KaosPath | None:
-    """
-    Return the first existing project-level skills directory.
-    """
-    return await find_first_existing_dir(get_project_skills_dir_candidates(work_dir))
+    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
+    name: str
+    description: str
+    type: SkillType = "standard"
+    dir: KaosPath
+    flow: Flow | None = None
+
+    @property
+    def skill_md_file(self) -> KaosPath:
+        """Path to the SKILL.md file."""
+        return self.dir / "SKILL.md"
+
+SkillType = Literal["standard", "flow"]
+
+# Internal Function Index:
+#
+#   [func] _supports_builtin_skills
+#   [func] _parse_flow_from_skill
+#   [func] _parse_flow_block
+#   [func] _iter_fenced_codeblocks
+#   [func] _normalize_code_lang
+#   [func] _parse_fence_open
+#   [func] _is_fence_close
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _supports_builtin_skills() -> bool:
+    """Return True when the active KAOS backend can read bundled skills."""
+    current_name = get_current_kaos().name
+    return current_name in (local_kaos.name, "acp")
 
 async def resolve_skills_roots(
     work_dir: KaosPath,
@@ -105,16 +131,13 @@ async def resolve_skills_roots(
         roots.append(project_dir)
     return roots
 
-
 def normalize_skill_name(name: str) -> str:
     """Normalize a skill name for lookup."""
     return name.casefold()
 
-
 def index_skills(skills: Iterable[Skill]) -> dict[str, Skill]:
     """Build a lookup table for skills by normalized name."""
     return {normalize_skill_name(skill.name): skill for skill in skills}
-
 
 async def discover_skills_from_roots(skills_dirs: Iterable[KaosPath]) -> list[Skill]:
     """
@@ -125,7 +148,6 @@ async def discover_skills_from_roots(skills_dirs: Iterable[KaosPath]) -> list[Sk
         for skill in await discover_skills(skills_dir):
             skills_by_name[normalize_skill_name(skill.name)] = skill
     return sorted(skills_by_name.values(), key=lambda s: s.name)
-
 
 async def read_skill_text(skill: Skill) -> str | None:
     """Read the SKILL.md contents for a skill."""
@@ -138,24 +160,6 @@ async def read_skill_text(skill: Skill) -> str | None:
             error=exc,
         )
         return None
-
-
-class Skill(BaseModel):
-    """Information about a single skill."""
-
-    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
-
-    name: str
-    description: str
-    type: SkillType = "standard"
-    dir: KaosPath
-    flow: Flow | None = None
-
-    @property
-    def skill_md_file(self) -> KaosPath:
-        """Path to the SKILL.md file."""
-        return self.dir / "SKILL.md"
-
 
 async def discover_skills(skills_dir: KaosPath) -> list[Skill]:
     """
@@ -189,7 +193,6 @@ async def discover_skills(skills_dir: KaosPath) -> list[Skill]:
 
     return sorted(skills, key=lambda s: s.name)
 
-
 def parse_skill_text(content: str, *, dir_path: KaosPath) -> Skill:
     """
     Parse SKILL.md contents to extract name and description.
@@ -218,8 +221,16 @@ def parse_skill_text(content: str, *, dir_path: KaosPath) -> Skill:
         flow=flow,
     )
 
-
 def _parse_flow_from_skill(content: str) -> Flow:
+    """
+     Parse Flow From Skill.
+    
+    Args:
+    content: Description.
+    
+    Returns:
+        Description.
+    """
     for lang, code in _iter_fenced_codeblocks(content):
         if lang == "mermaid":
             return _parse_flow_block(parse_mermaid_flowchart, code)
@@ -227,15 +238,32 @@ def _parse_flow_from_skill(content: str) -> Flow:
             return _parse_flow_block(parse_d2_flowchart, code)
     raise ValueError("Flow skills require a mermaid or d2 code block in SKILL.md.")
 
-
 def _parse_flow_block(parser: Callable[[str], Flow], code: str) -> Flow:
+    """
+     Parse Flow Block.
+    
+    Args:
+    parser: Description.
+    code: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         return parser(code)
     except FlowError as exc:
         raise ValueError(f"Invalid flow diagram: {exc}") from exc
 
-
 def _iter_fenced_codeblocks(content: str) -> Iterator[tuple[str, str]]:
+    """
+     Iter Fenced Codeblocks.
+    
+    Args:
+    content: Description.
+    
+    Returns:
+        Description.
+    """
     fence = ""
     fence_char = ""
     lang = ""
@@ -263,8 +291,16 @@ def _iter_fenced_codeblocks(content: str) -> Iterator[tuple[str, str]]:
 
         buf.append(line)
 
-
 def _normalize_code_lang(info: str) -> str:
+    """
+     Normalize Code Lang.
+    
+    Args:
+    info: Description.
+    
+    Returns:
+        Description.
+    """
     if not info:
         return ""
     lang = info.split()[0].strip().lower()
@@ -272,8 +308,16 @@ def _normalize_code_lang(info: str) -> str:
         lang = lang[1:-1].strip()
     return lang
 
-
 def _parse_fence_open(line: str) -> tuple[str, str, str] | None:
+    """
+     Parse Fence Open.
+    
+    Args:
+    line: Description.
+    
+    Returns:
+        Description.
+    """
     if not line or line[0] not in ("`", "~"):
         return None
     fence_char = line[0]
@@ -289,8 +333,18 @@ def _parse_fence_open(line: str) -> tuple[str, str, str] | None:
     info = line[count:].strip()
     return fence, fence_char, info
 
-
 def _is_fence_close(line: str, fence_char: str, fence_len: int) -> bool:
+    """
+     Is Fence Close.
+    
+    Args:
+    line: Description.
+    fence_char: Description.
+    fence_len: Description.
+    
+    Returns:
+        Description.
+    """
     if not fence_char or not line or line[0] != fence_char:
         return False
     count = 0

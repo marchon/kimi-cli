@@ -1,19 +1,15 @@
 from __future__ import annotations
-
 import json
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
-
 import aiofiles
 from pydantic import BaseModel, ConfigDict, ValidationError
-
 from kimi_cli.utils.logging import logger
 from kimi_cli.wire.protocol import WIRE_PROTOCOL_LEGACY_VERSION, WIRE_PROTOCOL_VERSION
 from kimi_cli.wire.types import WireMessage, WireMessageEnvelope
-
 
 class WireFileMetadata(BaseModel):
     """Metadata header stored as the first line in wire.jsonl."""
@@ -22,7 +18,6 @@ class WireFileMetadata(BaseModel):
 
     type: Literal["metadata"] = "metadata"
     protocol_version: str
-
 
 class WireMessageRecord(BaseModel):
     """The persisted record of a `WireMessage`."""
@@ -39,6 +34,33 @@ class WireMessageRecord(BaseModel):
     def to_wire_message(self) -> WireMessage:
         return self.message.to_wire_message()
 
+# Internal Function Index:
+#
+#   [func] _dump_line
+#   [func] _load_protocol_version
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _dump_line(model: BaseModel) -> str:
+    """
+     Dump Line.
+    
+    Args:
+    model: Description.
+    
+    Returns:
+        Description.
+    """
+    return json.dumps(model.model_dump(mode="json"), ensure_ascii=False) + "\n"
 
 def parse_wire_file_metadata(line: str) -> WireFileMetadata | None:
     """Parse a wire file metadata line; return None if the line is not metadata."""
@@ -47,7 +69,6 @@ def parse_wire_file_metadata(line: str) -> WireFileMetadata | None:
     except (ValidationError, ValueError):
         return None
 
-
 def parse_wire_file_line(line: str) -> WireFileMetadata | WireMessageRecord:
     """Parse a wire file line into metadata or a message record."""
     metadata = parse_wire_file_metadata(line)
@@ -55,9 +76,11 @@ def parse_wire_file_line(line: str) -> WireFileMetadata | WireMessageRecord:
         return metadata
     return WireMessageRecord.model_validate_json(line)
 
-
 @dataclass(slots=True)
 class WireFile:
+    """
+    WireFile class.
+    """
     path: Path
     protocol_version: str = WIRE_PROTOCOL_VERSION
 
@@ -130,12 +153,16 @@ class WireFile:
                 await f.write(_dump_line(metadata))
             await f.write(_dump_line(record))
 
-
-def _dump_line(model: BaseModel) -> str:
-    return json.dumps(model.model_dump(mode="json"), ensure_ascii=False) + "\n"
-
-
 def _load_protocol_version(path: Path) -> str | None:
+    """
+     Load Protocol Version.
+    
+    Args:
+    path: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         with path.open(encoding="utf-8") as f:
             for line in f:

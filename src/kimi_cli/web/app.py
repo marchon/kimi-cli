@@ -1,5 +1,3 @@
-"""Kimi Code CLI Web UI application."""
-
 import os
 import secrets
 import socket
@@ -10,7 +8,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import quote
-
 import scalar_fastapi
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +15,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from starlette.responses import HTMLResponse
-
 from kimi_cli.web.api import (
     config_router,
     open_in_router,
@@ -33,34 +29,61 @@ from kimi_cli.web.auth import (
 )
 from kimi_cli.web.runner.process import KimiCLIRunner
 
-# Configure logging based on LOG_LEVEL environment variable
-_log_level = os.environ.get("LOG_LEVEL", "WARNING").upper()
-logger.remove()
-logger.enable("kimi_cli")
-logger.add(sys.stderr, level=_log_level)
+"""Kimi Code CLI Web UI application."""
 
-# scalar-fastapi does not ship typing stubs.
+logger.remove()
+
+logger.enable("kimi_cli")
+
+DEFAULT_PORT = 5494
+
+ENV_ALLOWED_ORIGINS = "KIMI_WEB_ALLOWED_ORIGINS"
+
+ENV_ENFORCE_ORIGIN = "KIMI_WEB_ENFORCE_ORIGIN"
+
+ENV_LAN_ONLY = "KIMI_WEB_LAN_ONLY"
+
+ENV_MAX_PUBLIC_PATH_DEPTH = "KIMI_WEB_MAX_PUBLIC_PATH_DEPTH"
+
+ENV_RESTRICT_SENSITIVE_APIS = "KIMI_WEB_RESTRICT_SENSITIVE_APIS"
+
+ENV_SESSION_TOKEN = "KIMI_WEB_SESSION_TOKEN"
+
 get_scalar_api_reference = cast(  # pyright: ignore[reportUnknownMemberType]
     Callable[..., HTMLResponse],
     scalar_fastapi.get_scalar_api_reference,  # pyright: ignore[reportUnknownMemberType]
 )
 
-# Constants
-STATIC_DIR = Path(__file__).parent / "static"
-GZIP_MINIMUM_SIZE = 1024
 GZIP_COMPRESSION_LEVEL = 6
-DEFAULT_PORT = 5494
+
+GZIP_MINIMUM_SIZE = 1024
+
 MAX_PORT_ATTEMPTS = 10
-ENV_SESSION_TOKEN = "KIMI_WEB_SESSION_TOKEN"
-ENV_ALLOWED_ORIGINS = "KIMI_WEB_ALLOWED_ORIGINS"
-ENV_ENFORCE_ORIGIN = "KIMI_WEB_ENFORCE_ORIGIN"
-ENV_RESTRICT_SENSITIVE_APIS = "KIMI_WEB_RESTRICT_SENSITIVE_APIS"
-ENV_MAX_PUBLIC_PATH_DEPTH = "KIMI_WEB_MAX_PUBLIC_PATH_DEPTH"
+
+STATIC_DIR = Path(__file__).parent / "static"
+
+# Internal Function Index:
+#
+#   [func] _log_level
+#   [func] _is_local_host
+#   [func] _get_address_family
+#   [func] _get_private_addresses
+#   [func] _load_env_flag
+#   [func] _get_network_addresses
+#   [func] __all__
 
 
-def _is_local_host(host: str) -> bool:
-    return host in {"127.0.0.1", "localhost", "::1"}
 
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+__all__ = ["create_app", "find_available_port", "run_web_server"]
 
 def _get_address_family(host: str) -> socket.AddressFamily:
     """Determine the socket address family for a given host.
@@ -72,15 +95,74 @@ def _get_address_family(host: str) -> socket.AddressFamily:
         return socket.AF_INET6
     return socket.AF_INET
 
+def find_available_port(host: str, start_port: int, max_attempts: int = MAX_PORT_ATTEMPTS) -> int:
+    """Find an available port starting from start_port.
+
+    Args:
+        host: Host address to bind to
+        start_port: Starting port number (1-65535)
+        max_attempts: Maximum number of ports to try (must be positive)
+
+    Returns:
+        An available port number
+
+    Raises:
+        ValueError: If parameters are invalid
+        RuntimeError: If no available port is found within the range
+    """
+    if max_attempts <= 0:
+        raise ValueError("max_attempts must be positive")
+    if start_port < 1 or start_port > 65535:
+        raise ValueError("start_port must be between 1 and 65535")
+
+    family = _get_address_family(host)
+    for offset in range(max_attempts):
+        port = start_port + offset
+        with socket.socket(family, socket.SOCK_STREAM) as s:
+            # Set SO_REUSEADDR to allow reusing ports in TIME_WAIT state.
+            # This matches uvicorn's behavior and prevents false positives
+            # when checking port availability after a recent shutdown.
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind((host, port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(
+        f"Cannot find available port in range {start_port}-{start_port + max_attempts - 1}"
+    )
+
+def _is_local_host(host: str) -> bool:
+    """
+     Is Local Host.
+    
+    Args:
+    host: Description.
+    
+    Returns:
+        Description.
+    """
+    return host in {"127.0.0.1", "localhost", "::1"}
+
+def _load_env_flag(key: str) -> bool:
+    """
+     Load Env Flag.
+    
+    Args:
+    key: Description.
+    
+    Returns:
+        Description.
+    """
+    return os.environ.get(key, "").strip().lower() in {"1", "true", "yes", "on"}
+
+_log_level = os.environ.get("LOG_LEVEL", "WARNING").upper()
+
+logger.add(sys.stderr, level=_log_level)
 
 def _get_private_addresses(addresses: list[str]) -> list[str]:
     """Filter addresses to only include private IPs."""
     return [ip for ip in addresses if is_private_ip(ip)]
-
-
-def _load_env_flag(key: str) -> bool:
-    return os.environ.get(key, "").strip().lower() in {"1", "true", "yes", "on"}
-
 
 def _get_network_addresses() -> list[str]:
     """Get all non-loopback IPv4 addresses for this machine.
@@ -129,10 +211,6 @@ def _get_network_addresses() -> list[str]:
         pass
 
     return addresses
-
-
-ENV_LAN_ONLY = "KIMI_WEB_LAN_ONLY"
-
 
 def create_app(
     session_token: str | None = None,
@@ -243,45 +321,6 @@ def create_app(
         application.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
     return application
-
-
-def find_available_port(host: str, start_port: int, max_attempts: int = MAX_PORT_ATTEMPTS) -> int:
-    """Find an available port starting from start_port.
-
-    Args:
-        host: Host address to bind to
-        start_port: Starting port number (1-65535)
-        max_attempts: Maximum number of ports to try (must be positive)
-
-    Returns:
-        An available port number
-
-    Raises:
-        ValueError: If parameters are invalid
-        RuntimeError: If no available port is found within the range
-    """
-    if max_attempts <= 0:
-        raise ValueError("max_attempts must be positive")
-    if start_port < 1 or start_port > 65535:
-        raise ValueError("start_port must be between 1 and 65535")
-
-    family = _get_address_family(host)
-    for offset in range(max_attempts):
-        port = start_port + offset
-        with socket.socket(family, socket.SOCK_STREAM) as s:
-            # Set SO_REUSEADDR to allow reusing ports in TIME_WAIT state.
-            # This matches uvicorn's behavior and prevents false positives
-            # when checking port availability after a recent shutdown.
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                s.bind((host, port))
-                return port
-            except OSError:
-                continue
-    raise RuntimeError(
-        f"Cannot find available port in range {start_port}-{start_port + max_attempts - 1}"
-    )
-
 
 def run_web_server(
     host: str = "127.0.0.1",
@@ -535,6 +574,3 @@ def run_web_server(
         log_level="info",
         timeout_graceful_shutdown=3,
     )
-
-
-__all__ = ["create_app", "find_available_port", "run_web_server"]

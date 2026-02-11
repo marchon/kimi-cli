@@ -1,62 +1,62 @@
 from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 from typing import Literal
-
 from kosong.message import ContentPart
-
-FlowNodeKind = Literal["begin", "end", "task", "decision"]
-
-
-class FlowError(ValueError):
-    """Base error for flow parsing/validation."""
-
-
-class FlowParseError(FlowError):
-    """Raised when prompt flow parsing fails."""
-
-
-class FlowValidationError(FlowError):
-    """Raised when a flowchart fails validation."""
-
-
-@dataclass(frozen=True, slots=True)
-class FlowNode:
-    id: str
-    label: str | list[ContentPart]
-    kind: FlowNodeKind
-
-
-@dataclass(frozen=True, slots=True)
-class FlowEdge:
-    src: str
-    dst: str
-    label: str | None
-
 
 @dataclass(slots=True)
 class Flow:
+    """
+    Flow class.
+    """
     nodes: dict[str, FlowNode]
     outgoing: dict[str, list[FlowEdge]]
     begin_id: str
     end_id: str
 
+@dataclass(frozen=True, slots=True)
+class FlowEdge:
+    """
+    FlowEdge class.
+    """
+    src: str
+    dst: str
+    label: str | None
 
-_CHOICE_RE = re.compile(r"<choice>([^<]*)</choice>")
+class FlowError(ValueError):
+    """Base error for flow parsing/validation."""
 
+@dataclass(frozen=True, slots=True)
+class FlowNode:
+    """
+    FlowNode class.
+    """
+    id: str
+    label: str | list[ContentPart]
+    kind: FlowNodeKind
 
-def parse_choice(text: str) -> str | None:
-    matches = _CHOICE_RE.findall(text or "")
-    if not matches:
-        return None
-    return matches[-1].strip()
+FlowNodeKind = Literal["begin", "end", "task", "decision"]
 
+class FlowParseError(FlowError):
+    """Raised when prompt flow parsing fails."""
+
+class FlowValidationError(FlowError):
+    """Raised when a flowchart fails validation."""
 
 def validate_flow(
     nodes: dict[str, FlowNode],
     outgoing: dict[str, list[FlowEdge]],
 ) -> tuple[str, str]:
+    """
+    Validate Flow.
+    
+    Args:
+    nodes: Description.
+    outgoing: Description.
+    
+    Returns:
+        Description.
+    """
     begin_ids = [node.id for node in nodes.values() if node.kind == "begin"]
     end_ids = [node.id for node in nodes.values() if node.kind == "end"]
 
@@ -97,3 +97,35 @@ def validate_flow(
         raise FlowValidationError("END node is not reachable from BEGIN")
 
     return begin_id, end_id
+
+# Internal Function Index:
+#
+#   [func] _CHOICE_RE
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_CHOICE_RE = re.compile(r"<choice>([^<]*)</choice>")
+
+def parse_choice(text: str) -> str | None:
+    """
+    Parse Choice.
+    
+    Args:
+    text: Description.
+    
+    Returns:
+        Description.
+    """
+    matches = _CHOICE_RE.findall(text or "")
+    if not matches:
+        return None
+    return matches[-1].strip()

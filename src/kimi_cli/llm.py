@@ -1,39 +1,41 @@
 from __future__ import annotations
-
 import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast, get_args
-
 from kosong.chat_provider import ChatProvider
 from pydantic import SecretStr
-
 from kimi_cli.constant import USER_AGENT
 
 if TYPE_CHECKING:
     from kimi_cli.auth.oauth import OAuthManager
     from kimi_cli.config import LLMModel, LLMProvider
 
-type ProviderType = Literal[
-    "kimi",
-    "openai_legacy",
-    "openai_responses",
-    "anthropic",
-    "google_genai",  # for backward-compatibility, equals to `gemini`
-    "gemini",
-    "vertexai",
-    "_echo",
-    "_scripted_echo",
-    "_chaos",
-]
-
-type ModelCapability = Literal["image_in", "video_in", "thinking", "always_thinking"]
-ALL_MODEL_CAPABILITIES: set[ModelCapability] = set(get_args(ModelCapability.__value__))
-
+def derive_model_capabilities(model: LLMModel) -> set[ModelCapability]:
+    """
+    Derive Model Capabilities.
+    
+    Args:
+    model: Description.
+    
+    Returns:
+        Description.
+    """
+    capabilities = set(model.capabilities or ())
+    # Models with "thinking" in their name are always-thinking models
+    if "thinking" in model.model.lower() or "reason" in model.model.lower():
+        capabilities.update(("thinking", "always_thinking"))
+    # These models support thinking but can be toggled on/off
+    elif model.model in {"kimi-for-coding", "kimi-code"}:
+        capabilities.update(("thinking", "image_in", "video_in"))
+    return capabilities
 
 @dataclass(slots=True)
 class LLM:
+    """
+    LLM class.
+    """
     chat_provider: ChatProvider
     max_context_size: int
     capabilities: set[ModelCapability]
@@ -44,14 +46,9 @@ class LLM:
     def model_name(self) -> str:
         return self.chat_provider.model_name
 
+type ModelCapability = Literal["image_in", "video_in", "thinking", "always_thinking"]
 
-def model_display_name(model_name: str | None) -> str:
-    if not model_name:
-        return ""
-    if model_name in ("kimi-for-coding", "kimi-code"):
-        return f"{model_name} (powered by kimi-k2.5)"
-    return model_name
-
+ALL_MODEL_CAPABILITIES: set[ModelCapability] = set(get_args(ModelCapability.__value__))
 
 def augment_provider_with_env_vars(provider: LLMProvider, model: LLMModel) -> dict[str, str]:
     """Override provider/model settings from environment variables.
@@ -93,8 +90,62 @@ def augment_provider_with_env_vars(provider: LLMProvider, model: LLMModel) -> di
 
     return applied
 
+def model_display_name(model_name: str | None) -> str:
+    """
+    Model Display Name.
+    
+    Args:
+    model_name: Description.
+    
+    Returns:
+        Description.
+    """
+    if not model_name:
+        return ""
+    if model_name in ("kimi-for-coding", "kimi-code"):
+        return f"{model_name} (powered by kimi-k2.5)"
+    return model_name
+
+type ProviderType = Literal[
+    "kimi",
+    "openai_legacy",
+    "openai_responses",
+    "anthropic",
+    "google_genai",  # for backward-compatibility, equals to `gemini`
+    "gemini",
+    "vertexai",
+    "_echo",
+    "_scripted_echo",
+    "_chaos",
+]
+
+# Internal Function Index:
+#
+#   [func] _kimi_default_headers
+#   [func] _load_scripted_echo_scripts
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _kimi_default_headers(provider: LLMProvider, oauth: OAuthManager | None) -> dict[str, str]:
+    """
+     Kimi Default Headers.
+    
+    Args:
+    provider: Description.
+    oauth: Description.
+    
+    Returns:
+        Description.
+    """
     headers = {"User-Agent": USER_AGENT}
     if oauth:
         headers.update(oauth.common_headers())
@@ -102,6 +153,32 @@ def _kimi_default_headers(provider: LLMProvider, oauth: OAuthManager | None) -> 
         headers.update(provider.custom_headers)
     return headers
 
+def _load_scripted_echo_scripts() -> list[str]:
+    """
+     Load Scripted Echo Scripts.
+    """
+    script_path = os.getenv("KIMI_SCRIPTED_ECHO_SCRIPTS")
+    if not script_path:
+        raise ValueError("KIMI_SCRIPTED_ECHO_SCRIPTS is required for _scripted_echo.")
+    path = Path(script_path).expanduser()
+    if not path.exists():
+        raise ValueError(f"Scripted echo file not found: {path}")
+    text = path.read_text(encoding="utf-8")
+    try:
+        data: object = json.loads(text)
+    except json.JSONDecodeError:
+        scripts = [chunk.strip() for chunk in text.split("\n---\n") if chunk.strip()]
+        if scripts:
+            return scripts
+        raise ValueError(
+            "Scripted echo file must be a JSON array of strings or a text file "
+            "split by '\\n---\\n'."
+        ) from None
+    if isinstance(data, list):
+        data_list = cast(list[object], data)
+        if all(isinstance(item, str) for item in data_list):
+            return cast(list[str], data_list)
+    raise ValueError("Scripted echo JSON must be an array of strings.")
 
 def create_llm(
     provider: LLMProvider,
@@ -111,6 +188,19 @@ def create_llm(
     session_id: str | None = None,
     oauth: OAuthManager | None = None,
 ) -> LLM | None:
+    """
+    Create Llm.
+    
+    Args:
+    provider: Description.
+    model: Description.
+    thinking: Description.
+    session_id: Description.
+    oauth: Description.
+    
+    Returns:
+        Description.
+    """
     if provider.type not in {"_echo", "_scripted_echo"} and (
         not provider.base_url or not model.model
     ):
@@ -234,39 +324,3 @@ def create_llm(
         model_config=model,
         provider_config=provider,
     )
-
-
-def derive_model_capabilities(model: LLMModel) -> set[ModelCapability]:
-    capabilities = set(model.capabilities or ())
-    # Models with "thinking" in their name are always-thinking models
-    if "thinking" in model.model.lower() or "reason" in model.model.lower():
-        capabilities.update(("thinking", "always_thinking"))
-    # These models support thinking but can be toggled on/off
-    elif model.model in {"kimi-for-coding", "kimi-code"}:
-        capabilities.update(("thinking", "image_in", "video_in"))
-    return capabilities
-
-
-def _load_scripted_echo_scripts() -> list[str]:
-    script_path = os.getenv("KIMI_SCRIPTED_ECHO_SCRIPTS")
-    if not script_path:
-        raise ValueError("KIMI_SCRIPTED_ECHO_SCRIPTS is required for _scripted_echo.")
-    path = Path(script_path).expanduser()
-    if not path.exists():
-        raise ValueError(f"Scripted echo file not found: {path}")
-    text = path.read_text(encoding="utf-8")
-    try:
-        data: object = json.loads(text)
-    except json.JSONDecodeError:
-        scripts = [chunk.strip() for chunk in text.split("\n---\n") if chunk.strip()]
-        if scripts:
-            return scripts
-        raise ValueError(
-            "Scripted echo file must be a JSON array of strings or a text file "
-            "split by '\\n---\\n'."
-        ) from None
-    if isinstance(data, list):
-        data_list = cast(list[object], data)
-        if all(isinstance(item, str) for item in data_list):
-            return cast(list[str], data_list)
-    raise ValueError("Scripted echo JSON must be an array of strings.")

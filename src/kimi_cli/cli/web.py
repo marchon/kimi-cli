@@ -1,11 +1,9 @@
-"""Web UI command for Kimi Code CLI."""
-
 from typing import Annotated
-
 import typer
 
-cli = typer.Typer(help="Run Kimi Code CLI web interface.")
+"""Web UI command for Kimi Code CLI."""
 
+cli = typer.Typer(help="Run Kimi Code CLI web interface.")
 
 @cli.callback(invoke_without_command=True)
 def web(

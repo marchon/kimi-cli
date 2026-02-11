@@ -1,9 +1,6 @@
 from __future__ import annotations
-
 from kosong.message import Message
-
 from kimi_cli.wire.types import AudioURLPart, ImageURLPart, TextPart, VideoURLPart
-
 
 def message_stringify(message: Message) -> str:
     """Get a string representation of a message."""

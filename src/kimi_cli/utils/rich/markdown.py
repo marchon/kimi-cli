@@ -1,12 +1,7 @@
-# This file is modified from https://github.com/Textualize/rich/blob/4d6d631a3d2deddf8405522d4b8c976a6d35726c/rich/markdown.py
-# pyright: standard
-
 from __future__ import annotations
-
 import sys
 from collections.abc import Iterable, Mapping
 from typing import ClassVar, get_args
-
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
 from rich import box
@@ -21,69 +16,14 @@ from rich.style import Style, StyleStack
 from rich.syntax import Syntax, SyntaxTheme
 from rich.table import Table
 from rich.text import Text, TextType
-
 from kimi_cli.utils.rich.syntax import KIMI_ANSI_THEME_NAME, resolve_code_theme
 
 LIST_INDENT_WIDTH = 2
 
-_FALLBACK_STYLES: Mapping[str, Style] = {
-    "markdown.paragraph": Style(),
-    "markdown.h1": Style(color="bright_white", bold=True),
-    "markdown.h1.underline": Style(color="bright_white", bold=True),
-    "markdown.h2": Style(color="white", bold=True, underline=True),
-    "markdown.h3": Style(bold=True),
-    "markdown.h4": Style(bold=True),
-    "markdown.h5": Style(bold=True),
-    "markdown.h6": Style(dim=True, italic=True),
-    "markdown.code": Style(color="bright_cyan", bold=True),
-    "markdown.code_block": Style(color="bright_cyan"),
-    "markdown.item": Style(),
-    "markdown.item.bullet": Style(),
-    "markdown.item.number": Style(),
-    "markdown.em": Style(italic=True),
-    "markdown.strong": Style(bold=True),
-    "markdown.s": Style(strike=True),
-    "markdown.link": Style(color="bright_blue", underline=True),
-    "markdown.link_url": Style(color="cyan", underline=True),
-    "markdown.block_quote": Style(),
-    "markdown.hr": Style(color="grey58"),
-}
-
-
-def _strip_background(text: Text) -> Text:
-    """Return a copy of ``text`` with all background colors removed."""
-
-    clean = Text(
-        text.plain,
-        justify=text.justify,
-        overflow=text.overflow,
-        no_wrap=text.no_wrap,
-        end=text.end,
-        tab_size=text.tab_size,
-    )
-
-    if text.style:
-        base_style = text.style
-        if not isinstance(base_style, Style):
-            base_style = Style.parse(str(base_style))
-        base_style = base_style.copy()
-        if base_style._bgcolor is not None:
-            base_style._bgcolor = None
-        clean.stylize(base_style, 0, len(clean))
-
-    for span in text.spans:
-        style = span.style
-        if style is None:
-            continue
-        new_style = Style.parse(str(style)) if not isinstance(style, Style) else style.copy()
-        if new_style._bgcolor is not None:
-            new_style._bgcolor = None
-        clean.stylize(new_style, span.start, span.end)
-
-    return clean
-
-
 class MarkdownElement:
+    """
+    MarkdownElement class.
+    """
     new_line: ClassVar[bool] = True
 
     @classmethod
@@ -137,7 +77,6 @@ class MarkdownElement:
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         return ()
 
-
 class UnknownElement(MarkdownElement):
     """An unknown element.
 
@@ -146,6 +85,76 @@ class UnknownElement(MarkdownElement):
 
     """
 
+# Internal Function Index:
+#
+#   [func] _FALLBACK_STYLES
+#   [func] _strip_background
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_FALLBACK_STYLES: Mapping[str, Style] = {
+    "markdown.paragraph": Style(),
+    "markdown.h1": Style(color="bright_white", bold=True),
+    "markdown.h1.underline": Style(color="bright_white", bold=True),
+    "markdown.h2": Style(color="white", bold=True, underline=True),
+    "markdown.h3": Style(bold=True),
+    "markdown.h4": Style(bold=True),
+    "markdown.h5": Style(bold=True),
+    "markdown.h6": Style(dim=True, italic=True),
+    "markdown.code": Style(color="bright_cyan", bold=True),
+    "markdown.code_block": Style(color="bright_cyan"),
+    "markdown.item": Style(),
+    "markdown.item.bullet": Style(),
+    "markdown.item.number": Style(),
+    "markdown.em": Style(italic=True),
+    "markdown.strong": Style(bold=True),
+    "markdown.s": Style(strike=True),
+    "markdown.link": Style(color="bright_blue", underline=True),
+    "markdown.link_url": Style(color="cyan", underline=True),
+    "markdown.block_quote": Style(),
+    "markdown.hr": Style(color="grey58"),
+}
+
+def _strip_background(text: Text) -> Text:
+    """Return a copy of ``text`` with all background colors removed."""
+
+    clean = Text(
+        text.plain,
+        justify=text.justify,
+        overflow=text.overflow,
+        no_wrap=text.no_wrap,
+        end=text.end,
+        tab_size=text.tab_size,
+    )
+
+    if text.style:
+        base_style = text.style
+        if not isinstance(base_style, Style):
+            base_style = Style.parse(str(base_style))
+        base_style = base_style.copy()
+        if base_style._bgcolor is not None:
+            base_style._bgcolor = None
+        clean.stylize(base_style, 0, len(clean))
+
+    for span in text.spans:
+        style = span.style
+        if style is None:
+            continue
+        new_style = Style.parse(str(style)) if not isinstance(style, Style) else style.copy()
+        if new_style._bgcolor is not None:
+            new_style._bgcolor = None
+        clean.stylize(new_style, span.start, span.end)
+
+    return clean
 
 class TextElement(MarkdownElement):
     """Base class for elements that render text."""
@@ -161,7 +170,6 @@ class TextElement(MarkdownElement):
 
     def on_leave(self, context: MarkdownContext) -> None:
         context.leave_style()
-
 
 class Paragraph(TextElement):
     """A Paragraph."""
@@ -179,7 +187,6 @@ class Paragraph(TextElement):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         self.text.justify = self.justify
         yield self.text
-
 
 class Heading(TextElement):
     """A heading."""
@@ -209,7 +216,6 @@ class Heading(TextElement):
             yield underline
         else:
             yield text
-
 
 class CodeBlock(TextElement):
     """A code block with syntax highlighting."""
@@ -242,7 +248,6 @@ class CodeBlock(TextElement):
         stripped.rstrip()
         yield stripped
 
-
 class BlockQuote(TextElement):
     """A block quote."""
 
@@ -266,7 +271,6 @@ class BlockQuote(TextElement):
             yield from line
             yield new_line
 
-
 class HorizontalRule(MarkdownElement):
     """A horizontal rule to divide sections."""
 
@@ -275,7 +279,6 @@ class HorizontalRule(MarkdownElement):
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         style = _FALLBACK_STYLES["markdown.hr"].copy()
         yield Rule(style=style)
-
 
 class TableElement(MarkdownElement):
     """MarkdownElement corresponding to `table_open`."""
@@ -307,7 +310,6 @@ class TableElement(MarkdownElement):
 
         yield table
 
-
 class TableHeaderElement(MarkdownElement):
     """MarkdownElement corresponding to `thead_open` and `thead_close`."""
 
@@ -318,7 +320,6 @@ class TableHeaderElement(MarkdownElement):
         assert isinstance(child, TableRowElement)
         self.row = child
         return False
-
 
 class TableBodyElement(MarkdownElement):
     """MarkdownElement corresponding to `tbody_open` and `tbody_close`."""
@@ -331,7 +332,6 @@ class TableBodyElement(MarkdownElement):
         self.rows.append(child)
         return False
 
-
 class TableRowElement(MarkdownElement):
     """MarkdownElement corresponding to `tr_open` and `tr_close`."""
 
@@ -342,7 +342,6 @@ class TableRowElement(MarkdownElement):
         assert isinstance(child, TableDataElement)
         self.cells.append(child)
         return False
-
 
 class TableDataElement(MarkdownElement):
     """MarkdownElement corresponding to `td_open` and `td_close`
@@ -374,7 +373,6 @@ class TableDataElement(MarkdownElement):
         text.stylize(context.current_style)
         self.content.append_text(text)
 
-
 class ListElement(MarkdownElement):
     """A list element."""
 
@@ -401,7 +399,6 @@ class ListElement(MarkdownElement):
             last_number = number + len(self.items)
             for index, item in enumerate(self.items):
                 yield from item.render_number(console, options, number + index, last_number)
-
 
 class ListItem(TextElement):
     """An item in a list."""
@@ -493,8 +490,10 @@ class ListItem(TextElement):
             yield from line
             yield new_line
 
-
 class Link(TextElement):
+    """
+    Link class.
+    """
     @classmethod
     def create(cls, markdown: Markdown, token: Token) -> MarkdownElement:
         url = token.attrs.get("href", "#")
@@ -503,7 +502,6 @@ class Link(TextElement):
     def __init__(self, text: str, href: str):
         self.text = Text(text)
         self.href = href
-
 
 class ImageItem(TextElement):
     """Renders a placeholder for an image."""
@@ -541,7 +539,6 @@ class ImageItem(TextElement):
             title.stylize(link_style)
         text = Text.assemble("🌆 ", title, " ", end="")
         yield text
-
 
 class MarkdownContext:
     """Manages the console render state."""
@@ -605,7 +602,6 @@ class MarkdownContext:
         """Leave a style context."""
         style = self.style_stack.pop()
         return style
-
 
 class Markdown(JupyterMixin):
     """A Markdown renderable.
@@ -806,7 +802,6 @@ class Markdown(JupyterMixin):
                 if exiting or self_closing:
                     element.on_leave(context)
                     new_line = element.new_line
-
 
 if __name__ == "__main__":
     import argparse

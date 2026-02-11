@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from typing import Protocol
-
 import rich
 from kosong.message import Message
-
 from kimi_cli.cli import OutputFormat
 from kimi_cli.soul.message import tool_result_to_message
 from kimi_cli.utils.aioqueue import QueueShutDown
@@ -18,26 +16,56 @@ from kimi_cli.wire.types import (
     WireMessage,
 )
 
-
 class Printer(Protocol):
+    """
+    Printer class.
+    """
     def feed(self, msg: WireMessage) -> None: ...
     def flush(self) -> None: ...
 
+# Internal Function Index:
+#
+#   [func] _merge_content
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _merge_content(buffer: list[ContentPart], part: ContentPart) -> None:
+    """
+     Merge Content.
+    
+    Args:
+    buffer: Description.
+    part: Description.
+    
+    Returns:
+        Description.
+    """
     if not buffer or not buffer[-1].merge_in_place(part):
         buffer.append(part)
 
-
 class TextPrinter(Printer):
+    """
+    TextPrinter class.
+    """
     def feed(self, msg: WireMessage) -> None:
         rich.print(msg)
 
     def flush(self) -> None:
         pass
 
-
 class JsonPrinter(Printer):
+    """
+    JsonPrinter class.
+    """
     @dataclass(slots=True)
     class _ToolCallState:
         tool_call: ToolCall
@@ -103,8 +131,10 @@ class JsonPrinter(Printer):
         self._content_buffer.clear()
         self._tool_call_buffer.clear()
 
-
 class FinalOnlyTextPrinter(Printer):
+    """
+    FinalOnlyTextPrinter class.
+    """
     def __init__(self) -> None:
         self._content_buffer: list[ContentPart] = []
 
@@ -126,8 +156,10 @@ class FinalOnlyTextPrinter(Printer):
             print(text, flush=True)
         self._content_buffer.clear()
 
-
 class FinalOnlyJsonPrinter(Printer):
+    """
+    FinalOnlyJsonPrinter class.
+    """
     def __init__(self) -> None:
         self._content_buffer: list[ContentPart] = []
 
@@ -150,8 +182,18 @@ class FinalOnlyJsonPrinter(Printer):
             print(final_message.model_dump_json(exclude_none=True), flush=True)
         self._content_buffer.clear()
 
-
 async def visualize(output_format: OutputFormat, final_only: bool, wire: Wire) -> None:
+    """
+    Visualize.
+    
+    Args:
+    output_format: Description.
+    final_only: Description.
+    wire: Description.
+    
+    Returns:
+        Description.
+    """
     if final_only:
         match output_format:
             case "text":

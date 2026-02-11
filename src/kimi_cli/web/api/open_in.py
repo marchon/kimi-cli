@@ -1,18 +1,13 @@
-"""Open local apps for a path on the host machine."""
-
 from __future__ import annotations
-
 import subprocess
 import sys
 from pathlib import Path
 from typing import Literal
-
 from fastapi import APIRouter, HTTPException, status
 from loguru import logger
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/open-in", tags=["open-in"])
-
+"""Open local apps for a path on the host machine."""
 
 class OpenInRequest(BaseModel):
     """Open path in a local app."""
@@ -20,13 +15,49 @@ class OpenInRequest(BaseModel):
     app: Literal["finder", "cursor", "vscode", "iterm", "terminal", "antigravity"]
     path: str
 
-
 class OpenInResponse(BaseModel):
     """Open path response."""
 
     ok: bool
     detail: str | None = None
 
+router = APIRouter(prefix="/api/open-in", tags=["open-in"])
+
+# Internal Function Index:
+#
+#   [func] _resolve_path
+#   [func] _run_command
+#   [func] _open_app
+#   [func] _open_terminal
+#   [func] _open_iterm
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _run_command(args: list[str]) -> None:
+    """
+     Run Command.
+    
+    Args:
+    args: Description.
+    
+    Returns:
+        Description.
+    """
+    subprocess.run(
+        args,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 def _resolve_path(path: str) -> Path:
     """Resolve and validate a path (file or directory)."""
@@ -46,17 +77,18 @@ def _resolve_path(path: str) -> Path:
         )
     return resolved
 
-
-def _run_command(args: list[str]) -> None:
-    subprocess.run(
-        args,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-
-
 def _open_app(app_name: str, path: Path, fallback: str | None = None) -> None:
+    """
+     Open App.
+    
+    Args:
+    app_name: Description.
+    path: Description.
+    fallback: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         _run_command(["open", "-a", app_name, str(path)])
         return
@@ -66,13 +98,29 @@ def _open_app(app_name: str, path: Path, fallback: str | None = None) -> None:
         logger.warning("Open with {} failed: {}", app_name, exc)
     _run_command(["open", "-a", fallback, str(path)])
 
-
 def _open_terminal(path: Path) -> None:
+    """
+     Open Terminal.
+    
+    Args:
+    path: Description.
+    
+    Returns:
+        Description.
+    """
     script = f'tell application "Terminal" to do script "cd " & quoted form of "{path}"'
     _run_command(["osascript", "-e", script])
 
-
 def _open_iterm(path: Path) -> None:
+    """
+     Open Iterm.
+    
+    Args:
+    path: Description.
+    
+    Returns:
+        Description.
+    """
     script = "\n".join(
         [
             'tell application "iTerm"',
@@ -89,9 +137,17 @@ def _open_iterm(path: Path) -> None:
         script = script.replace('"iTerm"', '"iTerm2"')
         _run_command(["osascript", "-e", script])
 
-
 @router.post("", summary="Open a path in a local application")
 async def open_in(request: OpenInRequest) -> OpenInResponse:
+    """
+    Open In.
+    
+    Args:
+    request: Description.
+    
+    Returns:
+        Description.
+    """
     if sys.platform != "darwin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import codecs
 import contextlib
 import locale
@@ -8,11 +7,12 @@ import sys
 import threading
 from collections.abc import Iterator
 from typing import IO
-
 from loguru import logger
 
-
 class StderrRedirector:
+    """
+    StderrRedirector class.
+    """
     def __init__(self, level: str = "ERROR") -> None:
         self._level = level
         self._encoding: str | None = None
@@ -94,24 +94,26 @@ class StderrRedirector:
         os.set_inheritable(dup_fd, True)
         return os.fdopen(dup_fd, "wb", closefd=True)
 
-
-_stderr_redirector: StderrRedirector | None = None
-
-
 def redirect_stderr_to_logger(level: str = "ERROR") -> None:
+    """
+    Redirect Stderr To Logger.
+    
+    Args:
+    level: Description.
+    
+    Returns:
+        Description.
+    """
     global _stderr_redirector
     if _stderr_redirector is None:
         _stderr_redirector = StderrRedirector(level=level)
     _stderr_redirector.install()
 
-
-def restore_stderr() -> None:
-    if _stderr_redirector is not None:
-        _stderr_redirector.uninstall()
-
-
 @contextlib.contextmanager
 def open_original_stderr() -> Iterator[IO[bytes] | None]:
+    """
+    Open Original Stderr.
+    """
     redirector = _stderr_redirector
     if redirector is None:
         yield None
@@ -122,3 +124,27 @@ def open_original_stderr() -> Iterator[IO[bytes] | None]:
     finally:
         if stream is not None:
             stream.close()
+
+def restore_stderr() -> None:
+    """
+    Restore Stderr.
+    """
+    if _stderr_redirector is not None:
+        _stderr_redirector.uninstall()
+
+# Internal Function Index:
+#
+#   [func] _stderr_redirector
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_stderr_redirector: StderrRedirector | None = None

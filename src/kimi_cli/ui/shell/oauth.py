@@ -1,10 +1,7 @@
 from __future__ import annotations
-
 import asyncio
 from typing import TYPE_CHECKING
-
 from rich.status import Status
-
 from kimi_cli.auth import KIMI_CODE_PLATFORM_ID
 from kimi_cli.auth.oauth import login_kimi_code, logout_kimi_code
 from kimi_cli.auth.platforms import is_managed_provider_key, parse_managed_provider_key
@@ -18,15 +15,48 @@ from kimi_cli.ui.shell.slash import registry
 if TYPE_CHECKING:
     from kimi_cli.ui.shell import Shell
 
+# Internal Function Index:
+#
+#   [func] _ensure_kimi_soul
+#   [func] _login_kimi_code
+#   [func] _current_model_key
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _ensure_kimi_soul(app: Shell) -> KimiSoul | None:
+    """
+     Ensure Kimi Soul.
+    
+    Args:
+    app: Description.
+    
+    Returns:
+        Description.
+    """
     if not isinstance(app.soul, KimiSoul):
         console.print("[red]KimiSoul required[/red]")
         return None
     return app.soul
 
-
 async def _login_kimi_code(soul: KimiSoul) -> bool:
+    """
+     Login Kimi Code.
+    
+    Args:
+    soul: Description.
+    
+    Returns:
+        Description.
+    """
     status: Status | None = None
     ok = True
     try:
@@ -54,8 +84,16 @@ async def _login_kimi_code(soul: KimiSoul) -> bool:
             status.stop()
     return ok
 
-
 def _current_model_key(soul: KimiSoul) -> str | None:
+    """
+     Current Model Key.
+    
+    Args:
+    soul: Description.
+    
+    Returns:
+        Description.
+    """
     config = soul.runtime.config
     curr_model_cfg = soul.runtime.llm.model_config if soul.runtime.llm else None
     if curr_model_cfg is not None:
@@ -63,7 +101,6 @@ def _current_model_key(soul: KimiSoul) -> str | None:
             if model_cfg == curr_model_cfg:
                 return name
     return config.default_model or None
-
 
 @registry.command(aliases=["setup"])
 async def login(app: Shell, args: str) -> None:
@@ -83,7 +120,6 @@ async def login(app: Shell, args: str) -> None:
     await asyncio.sleep(1)
     console.clear()
     raise Reload
-
 
 @registry.command
 async def logout(app: Shell, args: str) -> None:

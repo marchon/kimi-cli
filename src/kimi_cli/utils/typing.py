@@ -1,7 +1,6 @@
 from types import UnionType
 from typing import Any, TypeAliasType, Union, get_args, get_origin
 
-
 def flatten_union(tp: Any) -> tuple[Any, ...]:
     """
     If `tp` is a `UnionType`, return its flattened arguments as a tuple.

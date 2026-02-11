@@ -1,8 +1,6 @@
 from __future__ import annotations
-
 import asyncio
 from typing import Any, Literal, TypeGuard, cast
-
 from kosong.chat_provider import TokenUsage
 from kosong.message import (
     AudioURLPart,
@@ -23,7 +21,6 @@ from kosong.tooling import (
 )
 from kosong.utils.typing import JsonType
 from pydantic import BaseModel, Field, field_serializer, field_validator
-
 from kimi_cli.tools.display import (
     DiffDisplayBlock,
     ShellDisplayBlock,
@@ -32,41 +29,23 @@ from kimi_cli.tools.display import (
 )
 from kimi_cli.utils.typing import flatten_union
 
+"""Any event, including control flow and content/tooling events."""
 
-class TurnBegin(BaseModel):
+"""Any request. Request is a message that expects a response."""
+
+"""Any message sent over the `Wire`."""
+
+class ApprovalResponse(BaseModel):
     """
-    Indicates the beginning of a new agent turn.
-    This event must be sent before any other event in the turn.
-    """
-
-    user_input: str | list[ContentPart]
-
-
-class TurnEnd(BaseModel):
-    """
-    Indicates the end of the current agent turn.
-    This event must be sent after all other events in the turn.
-    If the turn is interrupted, this event may be omitted.
+    Indicates that an approval request has been resolved.
     """
 
-    pass
+    type Kind = Literal["approve", "approve_for_session", "reject"]
 
-
-class StepBegin(BaseModel):
-    """
-    Indicates the beginning of a new agent step.
-    This event must be sent before any other event in the step.
-    """
-
-    n: int
-    """The step number."""
-
-
-class StepInterrupted(BaseModel):
-    """Indicates the current step was interrupted, either by user intervention or an error."""
-
-    pass
-
+    request_id: str
+    """The ID of the resolved approval request."""
+    response: Kind
+    """The response to the approval request."""
 
 class CompactionBegin(BaseModel):
     """
@@ -78,7 +57,6 @@ class CompactionBegin(BaseModel):
 
     pass
 
-
 class CompactionEnd(BaseModel):
     """
     Indicates that a compaction just ended.
@@ -86,7 +64,6 @@ class CompactionEnd(BaseModel):
     """
 
     pass
-
 
 class StatusUpdate(BaseModel):
     """
@@ -101,106 +78,19 @@ class StatusUpdate(BaseModel):
     message_id: str | None = None
     """The message ID of the current step."""
 
-
-class SubagentEvent(BaseModel):
+class StepBegin(BaseModel):
     """
-    An event from a subagent.
-    """
-
-    task_tool_call_id: str
-    """The ID of the task tool call associated with this subagent."""
-    event: Event
-    """The event from the subagent."""
-    # TODO: maybe restrict the event types? to exclude approval request, etc.
-
-    @field_serializer("event", when_used="json")
-    def _serialize_event(self, event: Event) -> dict[str, Any]:
-        envelope = WireMessageEnvelope.from_wire_message(event)
-        return envelope.model_dump(mode="json")
-
-    @field_validator("event", mode="before")
-    @classmethod
-    def _validate_event(cls, value: Any) -> Event:
-        if is_wire_message(value):
-            if is_event(value):
-                return value
-            raise ValueError("SubagentEvent event must be an Event")
-
-        if not isinstance(value, dict):
-            raise ValueError("SubagentEvent event must be a dict")
-        event_type = cast(dict[str, Any], value).get("type")
-        event_payload = cast(dict[str, Any], value).get("payload")
-        envelope = WireMessageEnvelope.model_validate(
-            {"type": event_type, "payload": event_payload}
-        )
-        event = envelope.to_wire_message()
-        if not is_event(event):
-            raise ValueError("SubagentEvent event must be an Event")
-        return event
-
-
-class ApprovalResponse(BaseModel):
-    """
-    Indicates that an approval request has been resolved.
+    Indicates the beginning of a new agent step.
+    This event must be sent before any other event in the step.
     """
 
-    type Kind = Literal["approve", "approve_for_session", "reject"]
+    n: int
+    """The step number."""
 
-    request_id: str
-    """The ID of the resolved approval request."""
-    response: Kind
-    """The response to the approval request."""
+class StepInterrupted(BaseModel):
+    """Indicates the current step was interrupted, either by user intervention or an error."""
 
-
-class ApprovalRequest(BaseModel):
-    """
-    A request for user approval before proceeding with an action.
-    """
-
-    id: str
-    tool_call_id: str
-    sender: str
-    action: str
-    description: str
-    display: list[DisplayBlock] = Field(default_factory=list[DisplayBlock])
-    """Defaults to an empty list for backwards-compatible wire.jsonl loading."""
-
-    # Note that the above fields are just a copy of `kimi_cli.soul.approval.Request`, but
-    # we cannot directly use that class here because we want to avoid dependency from Wire
-    # to Soul.
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self._future: asyncio.Future[ApprovalResponse.Kind] | None = None
-
-    def _get_future(self) -> asyncio.Future[ApprovalResponse.Kind]:
-        if self._future is None:
-            self._future = asyncio.get_event_loop().create_future()
-        return self._future
-
-    async def wait(self) -> ApprovalResponse.Kind:
-        """
-        Wait for the request to be resolved or cancelled.
-
-        Returns:
-            ApprovalResponse.Kind: The response to the approval request.
-        """
-        return await self._get_future()
-
-    def resolve(self, response: ApprovalResponse.Kind) -> None:
-        """
-        Resolve the approval request with the given response.
-        This will cause the `wait()` method to return the response.
-        """
-        future = self._get_future()
-        if not future.done():
-            future.set_result(response)
-
-    @property
-    def resolved(self) -> bool:
-        """Whether the request is resolved."""
-        return self._future is not None and self._future.done()
-
+    pass
 
 class ToolCallRequest(BaseModel):
     """
@@ -254,87 +144,92 @@ class ToolCallRequest(BaseModel):
         """Whether the tool call is resolved."""
         return self._future is not None and self._future.done()
 
+class ApprovalRequest(BaseModel):
+    """
+    A request for user approval before proceeding with an action.
+    """
 
-type Event = (
-    TurnBegin
-    | TurnEnd
-    | StepBegin
-    | StepInterrupted
-    | CompactionBegin
-    | CompactionEnd
-    | StatusUpdate
-    | ContentPart
-    | ToolCall
-    | ToolCallPart
-    | ToolResult
-    | ApprovalResponse
-    | SubagentEvent
-)
-"""Any event, including control flow and content/tooling events."""
+    id: str
+    tool_call_id: str
+    sender: str
+    action: str
+    description: str
+    display: list[DisplayBlock] = Field(default_factory=list[DisplayBlock])
+    """Defaults to an empty list for backwards-compatible wire.jsonl loading."""
 
+    # Note that the above fields are just a copy of `kimi_cli.soul.approval.Request`, but
+    # we cannot directly use that class here because we want to avoid dependency from Wire
+    # to Soul.
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._future: asyncio.Future[ApprovalResponse.Kind] | None = None
+
+    def _get_future(self) -> asyncio.Future[ApprovalResponse.Kind]:
+        if self._future is None:
+            self._future = asyncio.get_event_loop().create_future()
+        return self._future
+
+    async def wait(self) -> ApprovalResponse.Kind:
+        """
+        Wait for the request to be resolved or cancelled.
+
+        Returns:
+            ApprovalResponse.Kind: The response to the approval request.
+        """
+        return await self._get_future()
+
+    def resolve(self, response: ApprovalResponse.Kind) -> None:
+        """
+        Resolve the approval request with the given response.
+        This will cause the `wait()` method to return the response.
+        """
+        future = self._get_future()
+        if not future.done():
+            future.set_result(response)
+
+    @property
+    def resolved(self) -> bool:
+        """Whether the request is resolved."""
+        return self._future is not None and self._future.done()
 
 type Request = ApprovalRequest | ToolCallRequest
-"""Any request. Request is a message that expects a response."""
 
-type WireMessage = Event | Request
-"""Any message sent over the `Wire`."""
+class TurnBegin(BaseModel):
+    """
+    Indicates the beginning of a new agent turn.
+    This event must be sent before any other event in the turn.
+    """
 
+    user_input: str | list[ContentPart]
 
-_EVENT_TYPES = cast(tuple[type[Event], ...], flatten_union(Event))
-_REQUEST_TYPES = cast(tuple[type[Request], ...], flatten_union(Request))
-_WIRE_MESSAGE_TYPES = cast(tuple[type[WireMessage], ...], flatten_union(WireMessage))
+class TurnEnd(BaseModel):
+    """
+    Indicates the end of the current agent turn.
+    This event must be sent after all other events in the turn.
+    If the turn is interrupted, this event may be omitted.
+    """
 
+    pass
 
-def is_event(msg: Any) -> TypeGuard[Event]:
-    """Check if the message is an Event."""
-    return isinstance(msg, _EVENT_TYPES)
-
-
-def is_request(msg: Any) -> TypeGuard[Request]:
-    """Check if the message is a Request."""
-    return isinstance(msg, _REQUEST_TYPES)
-
-
-def is_wire_message(msg: Any) -> TypeGuard[WireMessage]:
-    """Check if the message is a WireMessage."""
-    return isinstance(msg, _WIRE_MESSAGE_TYPES)
-
-
-_NAME_TO_WIRE_MESSAGE_TYPE: dict[str, type[WireMessage]] = {
-    cls.__name__: cls for cls in _WIRE_MESSAGE_TYPES
-}
-# for backwards compatibility with Wire v1
-_NAME_TO_WIRE_MESSAGE_TYPE["ApprovalRequestResolved"] = ApprovalResponse
+# Internal Function Index:
+#
+#   [func] _EVENT_TYPES
+#   [func] _REQUEST_TYPES
+#   [func] _WIRE_MESSAGE_TYPES
+#   [func] _NAME_TO_WIRE_MESSAGE_TYPE
+#   [func] __assign__
+#   [func] __all__
 
 
-class WireMessageEnvelope(BaseModel):
-    type: str
-    payload: dict[str, JsonType]
 
-    @classmethod
-    def from_wire_message(cls, msg: WireMessage) -> WireMessageEnvelope:
-        typename: str | None = None
-        for name, typ in _NAME_TO_WIRE_MESSAGE_TYPE.items():
-            if issubclass(type(msg), typ):
-                typename = name
-                break
-        assert typename is not None, f"Unknown wire message type: {type(msg)}"
-        return cls(
-            type=typename,
-            payload=msg.model_dump(mode="json"),
-        )
 
-    def to_wire_message(self) -> WireMessage:
-        """
-        Convert the envelope back into a `WireMessage`.
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
 
-        Raises:
-            ValueError: If the message type is unknown or the payload is invalid.
-        """
-        msg_type = _NAME_TO_WIRE_MESSAGE_TYPE.get(self.type)
-        if msg_type is None:
-            raise ValueError(f"Unknown wire message type: {self.type}")
-        return msg_type.model_validate(self.payload)
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 __all__ = [
@@ -374,3 +269,113 @@ __all__ = [
     "TodoDisplayItem",
     "ShellDisplayBlock",
 ]
+
+class SubagentEvent(BaseModel):
+    """
+    An event from a subagent.
+    """
+
+    task_tool_call_id: str
+    """The ID of the task tool call associated with this subagent."""
+    event: Event
+    """The event from the subagent."""
+    # TODO: maybe restrict the event types? to exclude approval request, etc.
+
+    @field_serializer("event", when_used="json")
+    def _serialize_event(self, event: Event) -> dict[str, Any]:
+        envelope = WireMessageEnvelope.from_wire_message(event)
+        return envelope.model_dump(mode="json")
+
+    @field_validator("event", mode="before")
+    @classmethod
+    def _validate_event(cls, value: Any) -> Event:
+        if is_wire_message(value):
+            if is_event(value):
+                return value
+            raise ValueError("SubagentEvent event must be an Event")
+
+        if not isinstance(value, dict):
+            raise ValueError("SubagentEvent event must be a dict")
+        event_type = cast(dict[str, Any], value).get("type")
+        event_payload = cast(dict[str, Any], value).get("payload")
+        envelope = WireMessageEnvelope.model_validate(
+            {"type": event_type, "payload": event_payload}
+        )
+        event = envelope.to_wire_message()
+        if not is_event(event):
+            raise ValueError("SubagentEvent event must be an Event")
+        return event
+
+type Event = (
+    TurnBegin
+    | TurnEnd
+    | StepBegin
+    | StepInterrupted
+    | CompactionBegin
+    | CompactionEnd
+    | StatusUpdate
+    | ContentPart
+    | ToolCall
+    | ToolCallPart
+    | ToolResult
+    | ApprovalResponse
+    | SubagentEvent
+)
+
+type WireMessage = Event | Request
+
+_EVENT_TYPES = cast(tuple[type[Event], ...], flatten_union(Event))
+
+_REQUEST_TYPES = cast(tuple[type[Request], ...], flatten_union(Request))
+
+_WIRE_MESSAGE_TYPES = cast(tuple[type[WireMessage], ...], flatten_union(WireMessage))
+
+def is_event(msg: Any) -> TypeGuard[Event]:
+    """Check if the message is an Event."""
+    return isinstance(msg, _EVENT_TYPES)
+
+def is_request(msg: Any) -> TypeGuard[Request]:
+    """Check if the message is a Request."""
+    return isinstance(msg, _REQUEST_TYPES)
+
+def is_wire_message(msg: Any) -> TypeGuard[WireMessage]:
+    """Check if the message is a WireMessage."""
+    return isinstance(msg, _WIRE_MESSAGE_TYPES)
+
+_NAME_TO_WIRE_MESSAGE_TYPE: dict[str, type[WireMessage]] = {
+    cls.__name__: cls for cls in _WIRE_MESSAGE_TYPES
+}
+
+_NAME_TO_WIRE_MESSAGE_TYPE["ApprovalRequestResolved"] = ApprovalResponse
+
+class WireMessageEnvelope(BaseModel):
+    """
+    WireMessageEnvelope class.
+    """
+    type: str
+    payload: dict[str, JsonType]
+
+    @classmethod
+    def from_wire_message(cls, msg: WireMessage) -> WireMessageEnvelope:
+        typename: str | None = None
+        for name, typ in _NAME_TO_WIRE_MESSAGE_TYPE.items():
+            if issubclass(type(msg), typ):
+                typename = name
+                break
+        assert typename is not None, f"Unknown wire message type: {type(msg)}"
+        return cls(
+            type=typename,
+            payload=msg.model_dump(mode="json"),
+        )
+
+    def to_wire_message(self) -> WireMessage:
+        """
+        Convert the envelope back into a `WireMessage`.
+
+        Raises:
+            ValueError: If the message type is unknown or the payload is invalid.
+        """
+        msg_type = _NAME_TO_WIRE_MESSAGE_TYPE.get(self.type)
+        if msg_type is None:
+            raise ValueError(f"Unknown wire message type: {self.type}")
+        return msg_type.model_validate(self.payload)

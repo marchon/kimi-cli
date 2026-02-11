@@ -1,16 +1,13 @@
 from __future__ import annotations
-
 import asyncio
 import contextlib
 import warnings
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
 import kaos
 from kaos.path import KaosPath
 from pydantic import SecretStr
-
 from kimi_cli.agentspec import DEFAULT_AGENT_FILE
 from kimi_cli.auth.oauth import OAuthManager
 from kimi_cli.cli import InputFormat, OutputFormat
@@ -31,8 +28,17 @@ from kimi_cli.wire.types import ContentPart, WireMessage
 if TYPE_CHECKING:
     from fastmcp.mcp_config import MCPConfig
 
-
 def enable_logging(debug: bool = False, *, redirect_stderr: bool = True) -> None:
+    """
+    Enable Logging.
+    
+    Args:
+    debug: Description.
+    redirect_stderr: Description.
+    
+    Returns:
+        Description.
+    """
     # NOTE: stderr redirection is implemented by swapping the process-level fd=2 (dup2).
     # That can hide Click/Typer error output during CLI startup, so some entrypoints delay
     # installing it until after critical initialization succeeds.
@@ -50,8 +56,10 @@ def enable_logging(debug: bool = False, *, redirect_stderr: bool = True) -> None
     if redirect_stderr:
         redirect_stderr_to_logger()
 
-
 class KimiCLI:
+    """
+    KimiCLI class.
+    """
     @staticmethod
     async def create(
         session: Session,

@@ -1,17 +1,15 @@
 from __future__ import annotations
-
 import os
 from typing import Any, NamedTuple, cast
-
 import aiohttp
 from pydantic import BaseModel
-
 from kimi_cli.auth import KIMI_CODE_PLATFORM_ID
 from kimi_cli.config import Config, LLMModel, load_config, save_config
 from kimi_cli.llm import ModelCapability
 from kimi_cli.utils.aiohttp import new_client_session
 from kimi_cli.utils.logging import logger
 
+MANAGED_PROVIDER_PREFIX = "managed:"
 
 class ModelInfo(BaseModel):
     """Model information returned from the API."""
@@ -39,8 +37,10 @@ class ModelInfo(BaseModel):
             caps.update(("thinking", "image_in", "video_in"))
         return caps
 
-
 class Platform(NamedTuple):
+    """
+    Platform class.
+    """
     id: str
     name: str
     base_url: str
@@ -48,12 +48,32 @@ class Platform(NamedTuple):
     fetch_url: str | None = None
     allowed_prefixes: list[str] | None = None
 
+# Internal Function Index:
+#
+#   [func] _kimi_code_base_url
+#   [func] _PLATFORM_BY_ID
+#   [func] _PLATFORM_BY_NAME
+#   [func] _list_models
+#   [func] _apply_models
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _kimi_code_base_url() -> str:
+    """
+     Kimi Code Base Url.
+    """
     if base_url := os.getenv("KIMI_CODE_BASE_URL"):
         return base_url
     return "https://api.kimi.com/coding/v1"
-
 
 PLATFORMS: list[Platform] = [
     Platform(
@@ -78,47 +98,110 @@ PLATFORMS: list[Platform] = [
 ]
 
 _PLATFORM_BY_ID = {platform.id: platform for platform in PLATFORMS}
+
 _PLATFORM_BY_NAME = {platform.name: platform for platform in PLATFORMS}
 
-
 def get_platform_by_id(platform_id: str) -> Platform | None:
+    """
+    Get Platform By Id.
+    
+    Args:
+    platform_id: Description.
+    
+    Returns:
+        Description.
+    """
     return _PLATFORM_BY_ID.get(platform_id)
 
-
 def get_platform_by_name(name: str) -> Platform | None:
+    """
+    Get Platform By Name.
+    
+    Args:
+    name: Description.
+    
+    Returns:
+        Description.
+    """
     return _PLATFORM_BY_NAME.get(name)
 
-
-MANAGED_PROVIDER_PREFIX = "managed:"
-
-
 def managed_provider_key(platform_id: str) -> str:
+    """
+    Managed Provider Key.
+    
+    Args:
+    platform_id: Description.
+    
+    Returns:
+        Description.
+    """
     return f"{MANAGED_PROVIDER_PREFIX}{platform_id}"
 
-
 def managed_model_key(platform_id: str, model_id: str) -> str:
+    """
+    Managed Model Key.
+    
+    Args:
+    platform_id: Description.
+    model_id: Description.
+    
+    Returns:
+        Description.
+    """
     return f"{platform_id}/{model_id}"
 
-
 def parse_managed_provider_key(provider_key: str) -> str | None:
+    """
+    Parse Managed Provider Key.
+    
+    Args:
+    provider_key: Description.
+    
+    Returns:
+        Description.
+    """
     if not provider_key.startswith(MANAGED_PROVIDER_PREFIX):
         return None
     return provider_key.removeprefix(MANAGED_PROVIDER_PREFIX)
 
-
 def is_managed_provider_key(provider_key: str) -> bool:
+    """
+    Is Managed Provider Key.
+    
+    Args:
+    provider_key: Description.
+    
+    Returns:
+        Description.
+    """
     return provider_key.startswith(MANAGED_PROVIDER_PREFIX)
 
-
 def get_platform_name_for_provider(provider_key: str) -> str | None:
+    """
+    Get Platform Name For Provider.
+    
+    Args:
+    provider_key: Description.
+    
+    Returns:
+        Description.
+    """
     platform_id = parse_managed_provider_key(provider_key)
     if not platform_id:
         return None
     platform = get_platform_by_id(platform_id)
     return platform.name if platform else None
 
-
 async def refresh_managed_models(config: Config) -> bool:
+    """
+    Refresh Managed Models.
+    
+    Args:
+    config: Description.
+    
+    Returns:
+        Description.
+    """
     if not config.is_from_default_location:
         return False
 
@@ -176,8 +259,17 @@ async def refresh_managed_models(config: Config) -> bool:
             save_config(config_for_save)
     return changed
 
-
 async def list_models(platform: Platform, api_key: str) -> list[ModelInfo]:
+    """
+    List Models.
+    
+    Args:
+    platform: Description.
+    api_key: Description.
+    
+    Returns:
+        Description.
+    """
     async with new_client_session() as session:
         models = await _list_models(
             session,
@@ -189,13 +281,23 @@ async def list_models(platform: Platform, api_key: str) -> list[ModelInfo]:
     prefixes = tuple(platform.allowed_prefixes)
     return [model for model in models if model.id.startswith(prefixes)]
 
-
 async def _list_models(
     session: aiohttp.ClientSession,
     *,
     base_url: str,
     api_key: str,
 ) -> list[ModelInfo]:
+    """
+     List Models.
+    
+    Args:
+    session: Description.
+    base_url: Description.
+    api_key: Description.
+    
+    Returns:
+        Description.
+    """
     models_url = f"{base_url.rstrip('/')}/models"
     try:
         async with session.get(
@@ -227,13 +329,24 @@ async def _list_models(
         )
     return result
 
-
 def _apply_models(
     config: Config,
     provider_key: str,
     platform_id: str,
     models: list[ModelInfo],
 ) -> bool:
+    """
+     Apply Models.
+    
+    Args:
+    config: Description.
+    provider_key: Description.
+    platform_id: Description.
+    models: Description.
+    
+    Returns:
+        Description.
+    """
     changed = False
     model_keys: list[str] = []
 

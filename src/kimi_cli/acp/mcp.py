@@ -1,16 +1,21 @@
 from __future__ import annotations
-
 from typing import Any
-
 import acp.schema
 from fastmcp.mcp_config import MCPConfig
 from pydantic import ValidationError
-
 from kimi_cli.acp.types import MCPServer
 from kimi_cli.exception import MCPConfigError
 
-
 def acp_mcp_servers_to_mcp_config(mcp_servers: list[MCPServer]) -> MCPConfig:
+    """
+    Acp Mcp Servers To Mcp Config.
+    
+    Args:
+    mcp_servers: Description.
+    
+    Returns:
+        Description.
+    """
     if not mcp_servers:
         return MCPConfig()
 
@@ -20,6 +25,20 @@ def acp_mcp_servers_to_mcp_config(mcp_servers: list[MCPServer]) -> MCPConfig:
         )
     except ValidationError as exc:
         raise MCPConfigError(f"Invalid MCP config from ACP client: {exc}") from exc
+
+# Internal Function Index:
+#
+#   [func] _convert_acp_mcp_server
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _convert_acp_mcp_server(server: MCPServer) -> dict[str, Any]:

@@ -1,0 +1,150 @@
+.. Kimi Code CLI API Documentation
+
+========================================
+Kimi Code CLI API Documentation
+========================================
+
+**Kimi Code CLI** is a Python CLI agent for software engineering workflows, supporting an interactive shell UI, ACP server mode for IDE integrations, and MCP tool loading.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   quickstart
+   architecture
+   api/modules
+   ui_reference
+   cli_reference
+
+Quick Links
+===========
+
+* :doc:`quickstart` - Get started with the API
+* :doc:`architecture` - Understand the codebase architecture
+* :doc:`api/modules` - Browse the complete API reference
+* :doc:`ui_reference` - UI options and interfaces
+* :doc:`cli_reference` - CLI commands and options
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
+Module Overview
+===============
+
+Core Application
+----------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Description
+   * - :mod:`kimi_cli.app`
+     - Main application class and entry points
+   * - :mod:`kimi_cli.config`
+     - Configuration management
+   * - :mod:`kimi_cli.cli`
+     - Command-line interface
+   * - :mod:`kimi_cli.session`
+     - Session management
+
+Agent Runtime (Soul)
+--------------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Description
+   * - :mod:`kimi_cli.soul.kimisoul`
+     - Main agent loop and execution
+   * - :mod:`kimi_cli.soul.agent`
+     - Agent runtime and labor market
+   * - :mod:`kimi_cli.soul.toolset`
+     - Tool loading and execution
+   * - :mod:`kimi_cli.soul.context`
+     - Conversation context management
+   * - :mod:`kimi_cli.soul.approval`
+     - User approval system
+   * - :mod:`kimi_cli.soul.compaction`
+     - Context compaction
+   * - :mod:`kimi_cli.soul.slash`
+     - Slash command handling
+
+Tools
+-----
+
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Description
+   * - :mod:`kimi_cli.tools.shell`
+     - Shell command execution
+   * - :mod:`kimi_cli.tools.file`
+     - File operations (read, write, glob, grep)
+   * - :mod:`kimi_cli.tools.web`
+     - Web search and URL fetching
+   * - :mod:`kimi_cli.tools.multiagent`
+     - Subagent management
+   * - :mod:`kimi_cli.tools.todo`
+     - Todo list management
+   * - :mod:`kimi_cli.tools.think`
+     - Thinking tool
+   * - :mod:`kimi_cli.tools.dmail`
+     - D-Mail messaging
+
+Wire Protocol
+-------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Description
+   * - :mod:`kimi_cli.wire`
+     - Wire communication channel
+   * - :mod:`kimi_cli.wire.types`
+     - Wire message types
+   * - :mod:`kimi_cli.wire.protocol`
+     - Wire protocol
+   * - :mod:`kimi_cli.wire.serde`
+     - Serialization/deserialization
+
+User Interfaces
+---------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Description
+   * - :mod:`kimi_cli.ui.shell`
+     - Interactive shell UI
+   * - :mod:`kimi_cli.ui.print`
+     - Print/non-interactive UI
+   * - :mod:`kimi_cli.ui.acp`
+     - ACP server UI
+
+Supporting Modules
+------------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Module
+     - Description
+   * - :mod:`kimi_cli.llm`
+     - LLM provider management
+   * - :mod:`kimi_cli.auth.oauth`
+     - OAuth authentication
+   * - :mod:`kimi_cli.agentspec`
+     - Agent specification loading
+   * - :mod:`kimi_cli.skill`
+     - Skill discovery and loading
+   * - :mod:`kimi_cli.utils`
+     - Utility functions

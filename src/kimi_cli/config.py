@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 import json
 from pathlib import Path
 from typing import Literal, Self
-
 import tomlkit
 from pydantic import (
     AliasChoices,
@@ -15,21 +13,26 @@ from pydantic import (
     model_validator,
 )
 from tomlkit.exceptions import TOMLKitError
-
 from kimi_cli.exception import ConfigError
 from kimi_cli.llm import ModelCapability, ProviderType
 from kimi_cli.share import get_share_dir
 from kimi_cli.utils.logging import logger
 
+def get_config_file() -> Path:
+    """Get the configuration file path."""
+    return get_share_dir() / "config.toml"
 
-class OAuthRef(BaseModel):
-    """Reference to OAuth credentials stored outside the config file."""
+class LLMModel(BaseModel):
+    """LLM model configuration."""
 
-    storage: Literal["keyring", "file"] = "file"
-    """Credential storage backend."""
-    key: str
-    """Storage key to locate OAuth credentials."""
-
+    provider: str
+    """Provider name"""
+    model: str
+    """Model name"""
+    max_context_size: int
+    """Maximum context size (unit: tokens)"""
+    capabilities: set[ModelCapability] | None = None
+    """Model capabilities"""
 
 class LLMProvider(BaseModel):
     """LLM provider configuration."""
@@ -51,20 +54,6 @@ class LLMProvider(BaseModel):
     def dump_secret(self, v: SecretStr):
         return v.get_secret_value()
 
-
-class LLMModel(BaseModel):
-    """LLM model configuration."""
-
-    provider: str
-    """Provider name"""
-    model: str
-    """Model name"""
-    max_context_size: int
-    """Maximum context size (unit: tokens)"""
-    capabilities: set[ModelCapability] | None = None
-    """Model capabilities"""
-
-
 class LoopControl(BaseModel):
     """Agent loop control configuration."""
 
@@ -82,23 +71,18 @@ class LoopControl(BaseModel):
     """Reserved token count for LLM response generation. Auto-compaction triggers when
     context_tokens + reserved_context_size >= max_context_size. Default is 50000."""
 
+class MCPClientConfig(BaseModel):
+    """MCP client configuration."""
 
-class MoonshotSearchConfig(BaseModel):
-    """Moonshot Search configuration."""
+    tool_call_timeout_ms: int = 60000
+    """Timeout for tool calls in milliseconds."""
 
-    base_url: str
-    """Base URL for Moonshot Search service."""
-    api_key: SecretStr
-    """API key for Moonshot Search service."""
-    custom_headers: dict[str, str] | None = None
-    """Custom headers to include in API requests."""
-    oauth: OAuthRef | None = None
-    """OAuth credential reference (do not store tokens here)."""
+class MCPConfig(BaseModel):
+    """MCP configuration."""
 
-    @field_serializer("api_key", when_used="json")
-    def dump_secret(self, v: SecretStr):
-        return v.get_secret_value()
-
+    client: MCPClientConfig = Field(
+        default_factory=MCPClientConfig, description="MCP client configuration"
+    )
 
 class MoonshotFetchConfig(BaseModel):
     """Moonshot Fetch configuration."""
@@ -116,6 +100,29 @@ class MoonshotFetchConfig(BaseModel):
     def dump_secret(self, v: SecretStr):
         return v.get_secret_value()
 
+class MoonshotSearchConfig(BaseModel):
+    """Moonshot Search configuration."""
+
+    base_url: str
+    """Base URL for Moonshot Search service."""
+    api_key: SecretStr
+    """API key for Moonshot Search service."""
+    custom_headers: dict[str, str] | None = None
+    """Custom headers to include in API requests."""
+    oauth: OAuthRef | None = None
+    """OAuth credential reference (do not store tokens here)."""
+
+    @field_serializer("api_key", when_used="json")
+    def dump_secret(self, v: SecretStr):
+        return v.get_secret_value()
+
+class OAuthRef(BaseModel):
+    """Reference to OAuth credentials stored outside the config file."""
+
+    storage: Literal["keyring", "file"] = "file"
+    """Credential storage backend."""
+    key: str
+    """Storage key to locate OAuth credentials."""
 
 class Services(BaseModel):
     """Services configuration."""
@@ -124,22 +131,6 @@ class Services(BaseModel):
     """Moonshot Search configuration."""
     moonshot_fetch: MoonshotFetchConfig | None = None
     """Moonshot Fetch configuration."""
-
-
-class MCPClientConfig(BaseModel):
-    """MCP client configuration."""
-
-    tool_call_timeout_ms: int = 60000
-    """Timeout for tool calls in milliseconds."""
-
-
-class MCPConfig(BaseModel):
-    """MCP configuration."""
-
-    client: MCPClientConfig = Field(
-        default_factory=MCPClientConfig, description="MCP client configuration"
-    )
-
 
 class Config(BaseModel):
     """Main configuration structure."""
@@ -169,12 +160,6 @@ class Config(BaseModel):
                 raise ValueError(f"Provider {model.provider} not found in providers")
         return self
 
-
-def get_config_file() -> Path:
-    """Get the configuration file path."""
-    return get_share_dir() / "config.toml"
-
-
 def get_default_config() -> Config:
     """Get the default configuration."""
     return Config(
@@ -183,7 +168,6 @@ def get_default_config() -> Config:
         providers={},
         services=Services(),
     )
-
 
 def load_config(config_file: Path | None = None) -> Config:
     """
@@ -234,7 +218,6 @@ def load_config(config_file: Path | None = None) -> Config:
     config.is_from_default_location = is_default_config_file
     return config
 
-
 def load_config_from_string(config_string: str) -> Config:
     """
     Load configuration from a TOML or JSON string.
@@ -273,7 +256,6 @@ def load_config_from_string(config_string: str) -> Config:
     config.is_from_default_location = False
     return config
 
-
 def save_config(config: Config, config_file: Path | None = None):
     """
     Save configuration to config file.
@@ -292,8 +274,25 @@ def save_config(config: Config, config_file: Path | None = None):
         else:
             f.write(tomlkit.dumps(config_data))  # type: ignore[reportUnknownMemberType]
 
+# Internal Function Index:
+#
+#   [func] _migrate_json_config_to_toml
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _migrate_json_config_to_toml() -> None:
+    """
+     Migrate Json Config To Toml.
+    """
     old_json_config_file = get_share_dir() / "config.json"
     new_toml_config_file = get_share_dir() / "config.toml"
 

@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import builtins
 import shutil
@@ -7,15 +6,12 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from textwrap import shorten
-
 from kaos.path import KaosPath
 from kosong.message import Message
-
 from kimi_cli.metadata import WorkDirMeta, load_metadata, save_metadata
 from kimi_cli.utils.logging import logger
 from kimi_cli.wire.file import WireFile
 from kimi_cli.wire.types import TurnBegin
-
 
 @dataclass(slots=True, kw_only=True)
 class Session:
@@ -248,8 +244,32 @@ class Session:
         )
         return await Session.find(work_dir, work_dir_meta.last_session_id)
 
+# Internal Function Index:
+#
+#   [func] _migrate_session_context_file
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _migrate_session_context_file(work_dir_meta: WorkDirMeta, session_id: str) -> None:
+    """
+     Migrate Session Context File.
+    
+    Args:
+    work_dir_meta: Description.
+    session_id: Description.
+    
+    Returns:
+        Description.
+    """
     old_context_file = work_dir_meta.sessions_dir / f"{session_id}.jsonl"
     new_context_file = work_dir_meta.sessions_dir / session_id / "context.jsonl"
     if old_context_file.exists() and not new_context_file.exists():

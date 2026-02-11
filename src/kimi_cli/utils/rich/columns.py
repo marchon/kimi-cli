@@ -1,13 +1,30 @@
 from __future__ import annotations
-
 from rich.columns import Columns
 from rich.console import Console, ConsoleOptions, RenderableType, RenderResult
 from rich.measure import Measurement
 from rich.segment import Segment
 from rich.text import Text
 
+# Internal Function Index:
+#
+#   [class] _ShrinkToWidth
+#   [func] _strip_trailing_spaces
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 class _ShrinkToWidth:
+    """
+    _ShrinkToWidth class.
+    """
     def __init__(self, renderable: RenderableType, max_width: int) -> None:
         self._renderable = renderable
         self._max_width = max(max_width, 1)
@@ -24,8 +41,16 @@ class _ShrinkToWidth:
     def _resolve_width(self, options: ConsoleOptions) -> int:
         return max(1, min(self._max_width, options.max_width))
 
-
 def _strip_trailing_spaces(segments: list[Segment]) -> list[Segment]:
+    """
+     Strip Trailing Spaces.
+    
+    Args:
+    segments: Description.
+    
+    Returns:
+        Description.
+    """
     lines = list(Segment.split_lines(segments))
     trimmed: list[Segment] = []
     n_lines = len(lines)
@@ -50,8 +75,10 @@ def _strip_trailing_spaces(segments: list[Segment]) -> list[Segment]:
         trimmed.append(Segment.line())
     return trimmed
 
-
 class BulletColumns:
+    """
+    BulletColumns class.
+    """
     def __init__(
         self,
         renderable: RenderableType,

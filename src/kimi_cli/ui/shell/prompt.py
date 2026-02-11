@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import base64
 import getpass
@@ -17,7 +16,6 @@ from hashlib import md5, sha256
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Literal, override
-
 from kaos.path import KaosPath
 from PIL import Image
 from prompt_toolkit import PromptSession
@@ -40,7 +38,6 @@ from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from pydantic import BaseModel, ValidationError
-
 from kimi_cli.llm import ModelCapability
 from kimi_cli.share import get_share_dir
 from kimi_cli.soul import StatusSnapshot
@@ -52,10 +49,135 @@ from kimi_cli.utils.slashcmd import SlashCommand
 from kimi_cli.utils.string import random_string
 from kimi_cli.wire.types import ContentPart, ImageURLPart, TextPart
 
+"""The queue of toasts to show, including the one currently being shown (the first one)."""
+
+@dataclass(slots=True)
+class CachedAttachment:
+    """
+    CachedAttachment class.
+    """
+    kind: CachedAttachmentKind
+    attachment_id: str
+    path: Path
+
+type CachedAttachmentKind = Literal["image"]
+
 PROMPT_SYMBOL = "✨"
+
 PROMPT_SYMBOL_SHELL = "$"
+
 PROMPT_SYMBOL_THINKING = "💫"
 
+class PromptMode(Enum):
+    """
+    PromptMode class.
+    """
+    AGENT = "agent"
+    SHELL = "shell"
+
+    def toggle(self) -> PromptMode:
+        return PromptMode.SHELL if self == PromptMode.AGENT else PromptMode.AGENT
+
+    def __str__(self) -> str:
+        return self.value
+
+class UserInput(BaseModel):
+    """
+    UserInput class.
+    """
+    mode: PromptMode
+    command: str
+    """The plain text representation of the user input."""
+    content: list[ContentPart]
+    """The rich content parts."""
+
+    def __str__(self) -> str:
+        return self.command
+
+    def __bool__(self) -> bool:
+        return bool(self.command)
+
+# Internal Function Index:
+#
+#   [class] _HistoryEntry
+#   [func] _load_history_entries
+#   [func] _REFRESH_INTERVAL
+#   [class] _ToastEntry
+#   [func] _toast_queues
+#   [func] _current_toast
+#   [func] _ATTACHMENT_PLACEHOLDER_RE
+#   [func] _guess_image_mime
+#   [func] _build_image_part
+#   [func] _parse_attachment_kind
+#   [func] _sanitize_surrogates
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_ATTACHMENT_PLACEHOLDER_RE = re.compile(
+    r"\[(?P<type>[a-zA-Z0-9_\-]+):(?P<id>[a-zA-Z0-9_\-\.]+)"
+    r"(?:,(?P<width>\d+)x(?P<height>\d+))?\]"
+)
+
+class _HistoryEntry(BaseModel):
+    """
+    _HistoryEntry class.
+    """
+    content: str
+
+def _parse_attachment_kind(raw_kind: str) -> CachedAttachmentKind | None:
+    """
+     Parse Attachment Kind.
+    
+    Args:
+    raw_kind: Description.
+    
+    Returns:
+        Description.
+    """
+    if raw_kind == "image":
+        return "image"
+    return None
+
+_REFRESH_INTERVAL = 1.0
+
+@dataclass(slots=True)
+class _ToastEntry:
+    """
+    _ToastEntry class.
+    """
+    topic: str | None
+    """There can be only one toast of each non-None topic in the queue."""
+    message: str
+    duration: float
+
+_toast_queues: dict[Literal["left", "right"], deque[_ToastEntry]] = {
+    "left": deque(),
+    "right": deque(),
+}
+
+def _current_toast(position: Literal["left", "right"] = "left") -> _ToastEntry | None:
+    """
+     Current Toast.
+    
+    Args:
+    position: Description.
+    
+    Returns:
+        Description.
+    """
+    queue = _toast_queues[position]
+    if not queue:
+        return None
+    return queue[0]
 
 class SlashCommandCompleter(Completer):
     """
@@ -130,7 +252,6 @@ class SlashCommandCompleter(Completer):
                     display=cmd.slash_name(),
                     display_meta=cmd.description,
                 )
-
 
 class LocalFileMentionCompleter(Completer):
     """Offer fuzzy `@` path completion by indexing workspace files."""
@@ -381,12 +502,16 @@ class LocalFileMentionCompleter(Completer):
         finally:
             self._fragment_hint = None
 
-
-class _HistoryEntry(BaseModel):
-    content: str
-
-
 def _load_history_entries(history_file: Path) -> list[_HistoryEntry]:
+    """
+     Load History Entries.
+    
+    Args:
+    history_file: Description.
+    
+    Returns:
+        Description.
+    """
     entries: list[_HistoryEntry] = []
     if not history_file.exists():
         return entries
@@ -423,50 +548,6 @@ def _load_history_entries(history_file: Path) -> list[_HistoryEntry]:
 
     return entries
 
-
-class PromptMode(Enum):
-    AGENT = "agent"
-    SHELL = "shell"
-
-    def toggle(self) -> PromptMode:
-        return PromptMode.SHELL if self == PromptMode.AGENT else PromptMode.AGENT
-
-    def __str__(self) -> str:
-        return self.value
-
-
-class UserInput(BaseModel):
-    mode: PromptMode
-    command: str
-    """The plain text representation of the user input."""
-    content: list[ContentPart]
-    """The rich content parts."""
-
-    def __str__(self) -> str:
-        return self.command
-
-    def __bool__(self) -> bool:
-        return bool(self.command)
-
-
-_REFRESH_INTERVAL = 1.0
-
-
-@dataclass(slots=True)
-class _ToastEntry:
-    topic: str | None
-    """There can be only one toast of each non-None topic in the queue."""
-    message: str
-    duration: float
-
-
-_toast_queues: dict[Literal["left", "right"], deque[_ToastEntry]] = {
-    "left": deque(),
-    "right": deque(),
-}
-"""The queue of toasts to show, including the one currently being shown (the first one)."""
-
-
 def toast(
     message: str,
     duration: float = 5.0,
@@ -474,6 +555,19 @@ def toast(
     immediate: bool = False,
     position: Literal["left", "right"] = "left",
 ) -> None:
+    """
+    Toast.
+    
+    Args:
+    message: Description.
+    duration: Description.
+    topic: Description.
+    immediate: Description.
+    position: Description.
+    
+    Returns:
+        Description.
+    """
     queue = _toast_queues[position]
     duration = max(duration, _REFRESH_INTERVAL)
     entry = _ToastEntry(topic=topic, message=message, duration=duration)
@@ -487,29 +581,33 @@ def toast(
     else:
         queue.append(entry)
 
-
-def _current_toast(position: Literal["left", "right"] = "left") -> _ToastEntry | None:
-    queue = _toast_queues[position]
-    if not queue:
-        return None
-    return queue[0]
-
-
-_ATTACHMENT_PLACEHOLDER_RE = re.compile(
-    r"\[(?P<type>[a-zA-Z0-9_\-]+):(?P<id>[a-zA-Z0-9_\-\.]+)"
-    r"(?:,(?P<width>\d+)x(?P<height>\d+))?\]"
-)
-
-
 def _guess_image_mime(path: Path) -> str:
+    """
+     Guess Image Mime.
+    
+    Args:
+    path: Description.
+    
+    Returns:
+        Description.
+    """
     mime, _ = mimetypes.guess_type(path.name)
     if mime:
         return mime
     # fallback to PNG
     return "image/png"
 
-
 def _build_image_part(image_bytes: bytes, mime_type: str) -> ImageURLPart:
+    """
+     Build Image Part.
+    
+    Args:
+    image_bytes: Description.
+    mime_type: Description.
+    
+    Returns:
+        Description.
+    """
     image_base64 = base64.b64encode(image_bytes).decode("ascii")
     return ImageURLPart(
         image_url=ImageURLPart.ImageURL(
@@ -517,18 +615,10 @@ def _build_image_part(image_bytes: bytes, mime_type: str) -> ImageURLPart:
         )
     )
 
-
-type CachedAttachmentKind = Literal["image"]
-
-
-@dataclass(slots=True)
-class CachedAttachment:
-    kind: CachedAttachmentKind
-    attachment_id: str
-    path: Path
-
-
 class AttachmentCache:
+    """
+    AttachmentCache class.
+    """
     def __init__(self, root: Path | None = None) -> None:
         self._root = root or Path("/tmp/kimi")
         self._dir_map: dict[CachedAttachmentKind, str] = {"image": "images"}
@@ -620,13 +710,6 @@ class AttachmentCache:
             return wrap_media_part(part, tag="image", attrs={"path": str(path)})
         return None
 
-
-def _parse_attachment_kind(raw_kind: str) -> CachedAttachmentKind | None:
-    if raw_kind == "image":
-        return "image"
-    return None
-
-
 def _sanitize_surrogates(text: str) -> str:
     """Sanitize UTF-16 surrogate characters that cannot be encoded to UTF-8.
 
@@ -635,8 +718,10 @@ def _sanitize_surrogates(text: str) -> str:
     """
     return text.encode("utf-8", errors="surrogatepass").decode("utf-8", errors="replace")
 
-
 class CustomPromptSession:
+    """
+    CustomPromptSession class.
+    """
     def __init__(
         self,
         *,

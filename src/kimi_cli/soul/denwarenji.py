@@ -1,19 +1,16 @@
 from __future__ import annotations
-
 from pydantic import BaseModel, Field
 
-
-class DMail(BaseModel):
-    message: str = Field(description="The message to send.")
-    checkpoint_id: int = Field(description="The checkpoint to send the message back to.", ge=0)
-    # TODO: allow restoring filesystem state to the checkpoint
-
-
 class DenwaRenjiError(Exception):
+    """
+    DenwaRenjiError class.
+    """
     pass
 
-
 class DenwaRenji:
+    """
+    DenwaRenji class.
+    """
     def __init__(self):
         self._pending_dmail: DMail | None = None
         self._n_checkpoints: int = 0
@@ -37,3 +34,10 @@ class DenwaRenji:
         pending_dmail = self._pending_dmail
         self._pending_dmail = None
         return pending_dmail
+
+class DMail(BaseModel):
+    """
+    DMail class.
+    """
+    message: str = Field(description="The message to send.")
+    checkpoint_id: int = Field(description="The checkpoint to send the message back to.", ge=0)

@@ -1,14 +1,11 @@
 from __future__ import annotations
-
 import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, NamedTuple
-
 import acp
 from kaos.path import KaosPath
-
 from kimi_cli.acp.kaos import ACPKaos
 from kimi_cli.acp.mcp import acp_mcp_servers_to_mcp_config
 from kimi_cli.acp.session import ACPSession
@@ -23,8 +20,82 @@ from kimi_cli.soul.slash import registry as soul_slash_registry
 from kimi_cli.soul.toolset import KimiToolset
 from kimi_cli.utils.logging import logger
 
+# Internal Function Index:
+#
+#   [class] _ModelIDConv
+#   [func] _expand_llm_models
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+class _ModelIDConv(NamedTuple):
+    """
+    _ModelIDConv class.
+    """
+    model_key: str
+    thinking: bool
+
+    @classmethod
+    def from_acp_model_id(cls, model_id: str) -> _ModelIDConv:
+        if model_id.endswith(",thinking"):
+            return _ModelIDConv(model_id[: -len(",thinking")], True)
+        return _ModelIDConv(model_id, False)
+
+    def to_acp_model_id(self) -> str:
+        if self.thinking:
+            return f"{self.model_key},thinking"
+        return self.model_key
+
+def _expand_llm_models(models: dict[str, LLMModel]) -> list[acp.schema.ModelInfo]:
+    """
+     Expand Llm Models.
+    
+    Args:
+    models: Description.
+    
+    Returns:
+        Description.
+    """
+    expanded_models: list[acp.schema.ModelInfo] = []
+    for model_key, model in models.items():
+        capabilities = derive_model_capabilities(model)
+        if "thinking" in model.model or "reason" in model.model:
+            # always-thinking models
+            expanded_models.append(
+                acp.schema.ModelInfo(
+                    model_id=_ModelIDConv(model_key, True).to_acp_model_id(),
+                    name=f"{model.model}",
+                )
+            )
+        else:
+            expanded_models.append(
+                acp.schema.ModelInfo(
+                    model_id=model_key,
+                    name=model.model,
+                )
+            )
+            if "thinking" in capabilities:
+                # add thinking variant
+                expanded_models.append(
+                    acp.schema.ModelInfo(
+                        model_id=_ModelIDConv(model_key, True).to_acp_model_id(),
+                        name=f"{model.model} (thinking)",
+                    )
+                )
+    return expanded_models
 
 class ACPServer:
+    """
+    ACPServer class.
+    """
     def __init__(self) -> None:
         self.client_capabilities: acp.schema.ClientCapabilities | None = None
         self.conn: acp.Client | None = None
@@ -303,49 +374,3 @@ class ACPServer:
 
     async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
         raise NotImplementedError
-
-
-class _ModelIDConv(NamedTuple):
-    model_key: str
-    thinking: bool
-
-    @classmethod
-    def from_acp_model_id(cls, model_id: str) -> _ModelIDConv:
-        if model_id.endswith(",thinking"):
-            return _ModelIDConv(model_id[: -len(",thinking")], True)
-        return _ModelIDConv(model_id, False)
-
-    def to_acp_model_id(self) -> str:
-        if self.thinking:
-            return f"{self.model_key},thinking"
-        return self.model_key
-
-
-def _expand_llm_models(models: dict[str, LLMModel]) -> list[acp.schema.ModelInfo]:
-    expanded_models: list[acp.schema.ModelInfo] = []
-    for model_key, model in models.items():
-        capabilities = derive_model_capabilities(model)
-        if "thinking" in model.model or "reason" in model.model:
-            # always-thinking models
-            expanded_models.append(
-                acp.schema.ModelInfo(
-                    model_id=_ModelIDConv(model_key, True).to_acp_model_id(),
-                    name=f"{model.model}",
-                )
-            )
-        else:
-            expanded_models.append(
-                acp.schema.ModelInfo(
-                    model_id=model_key,
-                    name=model.model,
-                )
-            )
-            if "thinking" in capabilities:
-                # add thinking variant
-                expanded_models.append(
-                    acp.schema.ModelInfo(
-                        model_id=_ModelIDConv(model_key, True).to_acp_model_id(),
-                        name=f"{model.model} (thinking)",
-                    )
-                )
-    return expanded_models

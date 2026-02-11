@@ -1,11 +1,9 @@
 import json
 from pathlib import Path
 from typing import Annotated, Any, Literal
-
 import typer
 
 cli = typer.Typer(help="Manage MCP server configurations.")
-
 
 def get_global_mcp_config_file() -> Path:
     """Get the global MCP config file path."""
@@ -13,46 +11,25 @@ def get_global_mcp_config_file() -> Path:
 
     return get_share_dir() / "mcp.json"
 
+Transport = Literal["stdio", "http"]
 
-def _load_mcp_config() -> dict[str, Any]:
-    """Load MCP config from global mcp config file."""
-    from fastmcp.mcp_config import MCPConfig
-    from pydantic import ValidationError
-
-    mcp_file = get_global_mcp_config_file()
-    if not mcp_file.exists():
-        return {"mcpServers": {}}
-    try:
-        config = json.loads(mcp_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
-        raise typer.BadParameter(f"Invalid JSON in MCP config file '{mcp_file}': {e}") from e
-
-    try:
-        MCPConfig.model_validate(config)
-    except ValidationError as e:
-        raise typer.BadParameter(f"Invalid MCP config in '{mcp_file}': {e}") from e
-
-    return config
+# Internal Function Index:
+#
+#   [func] _load_mcp_config
+#   [func] _save_mcp_config
+#   [func] _get_mcp_server
+#   [func] _parse_key_value_pairs
+#   [func] _has_oauth_tokens
 
 
-def _save_mcp_config(config: dict[str, Any]) -> None:
-    """Save MCP config to default file."""
-    mcp_file = get_global_mcp_config_file()
-    mcp_file.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def _get_mcp_server(name: str, *, require_remote: bool = False) -> dict[str, Any]:
-    """Get MCP server config by name."""
-    config = _load_mcp_config()
-    servers = config.get("mcpServers", {})
-    if name not in servers:
-        typer.echo(f"MCP server '{name}' not found.", err=True)
-        raise typer.Exit(code=1)
-    server = servers[name]
-    if require_remote and "url" not in server:
-        typer.echo(f"MCP server '{name}' is not a remote server.", err=True)
-        raise typer.Exit(code=1)
-    return server
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _parse_key_value_pairs(
@@ -76,9 +53,43 @@ def _parse_key_value_pairs(
         parsed[key] = value
     return parsed
 
+def _load_mcp_config() -> dict[str, Any]:
+    """Load MCP config from global mcp config file."""
+    from fastmcp.mcp_config import MCPConfig
+    from pydantic import ValidationError
 
-Transport = Literal["stdio", "http"]
+    mcp_file = get_global_mcp_config_file()
+    if not mcp_file.exists():
+        return {"mcpServers": {}}
+    try:
+        config = json.loads(mcp_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise typer.BadParameter(f"Invalid JSON in MCP config file '{mcp_file}': {e}") from e
 
+    try:
+        MCPConfig.model_validate(config)
+    except ValidationError as e:
+        raise typer.BadParameter(f"Invalid MCP config in '{mcp_file}': {e}") from e
+
+    return config
+
+def _save_mcp_config(config: dict[str, Any]) -> None:
+    """Save MCP config to default file."""
+    mcp_file = get_global_mcp_config_file()
+    mcp_file.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
+
+def _get_mcp_server(name: str, *, require_remote: bool = False) -> dict[str, Any]:
+    """Get MCP server config by name."""
+    config = _load_mcp_config()
+    servers = config.get("mcpServers", {})
+    if name not in servers:
+        typer.echo(f"MCP server '{name}' not found.", err=True)
+        raise typer.Exit(code=1)
+    server = servers[name]
+    if require_remote and "url" not in server:
+        typer.echo(f"MCP server '{name}' is not a remote server.", err=True)
+        raise typer.Exit(code=1)
+    return server
 
 @cli.command(
     "add",
@@ -192,7 +203,6 @@ def mcp_add(
     _save_mcp_config(config)
     typer.echo(f"Added MCP server '{name}' to {get_global_mcp_config_file()}.")
 
-
 @cli.command("remove")
 def mcp_remove(
     name: Annotated[
@@ -206,7 +216,6 @@ def mcp_remove(
     del config["mcpServers"][name]
     _save_mcp_config(config)
     typer.echo(f"Removed MCP server '{name}' from {get_global_mcp_config_file()}.")
-
 
 def _has_oauth_tokens(server_url: str) -> bool:
     """Check if OAuth tokens exist for the server."""
@@ -223,7 +232,6 @@ def _has_oauth_tokens(server_url: str) -> bool:
             return False
 
     return asyncio.run(_check())
-
 
 @cli.command("list")
 def mcp_list():
@@ -252,7 +260,6 @@ def mcp_list():
         else:
             line = f"{name}: {server}"
         typer.echo(f"  {line}")
-
 
 @cli.command("auth")
 def mcp_auth(
@@ -287,7 +294,6 @@ def mcp_auth(
 
     asyncio.run(_auth())
 
-
 @cli.command("reset-auth")
 def mcp_reset_auth(
     name: Annotated[
@@ -310,7 +316,6 @@ def mcp_reset_auth(
     except Exception as e:
         typer.echo(f"Failed to clear tokens: {type(e).__name__}: {e}", err=True)
         raise typer.Exit(code=1) from None
-
 
 @cli.command("test")
 def mcp_test(

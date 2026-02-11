@@ -1,15 +1,12 @@
 from __future__ import annotations
-
 import asyncio
 import contextlib
 import getpass
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
-
 from kosong.message import ContentPart, Message
 from kosong.tooling import ToolError, ToolOk
-
 from kimi_cli.ui.shell.console import console
 from kimi_cli.ui.shell.prompt import PROMPT_SYMBOL
 from kimi_cli.ui.shell.visualize import visualize
@@ -31,13 +28,53 @@ from kimi_cli.wire.types import (
 
 MAX_REPLAY_TURNS = 5
 
+# Internal Function Index:
+#
+#   [class] _ReplayTurn
+#   [func] _build_replay_turns_from_wire
+#   [func] _is_clear_command_input
+#   [func] _is_user_message
+#   [func] _find_replay_start
+#   [func] _build_replay_turns_from_history
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _is_clear_command_input(user_input: str | list[ContentPart]) -> bool:
+    """
+     Is Clear Command Input.
+    
+    Args:
+    user_input: Description.
+    
+    Returns:
+        Description.
+    """
+    if isinstance(user_input, list):
+        text = Message(role="user", content=user_input).extract_text(" ").strip()
+    else:
+        text = str(user_input).strip()
+    call = parse_slash_command_call(text)
+    if call is None:
+        return False
+    return call.name in {"clear", "reset"}
 
 @dataclass(slots=True)
 class _ReplayTurn:
+    """
+    _ReplayTurn class.
+    """
     user_message: Message
     events: list[Event]
     n_steps: int = 0
-
 
 async def replay_recent_history(
     history: Sequence[Message],
@@ -74,8 +111,16 @@ async def replay_recent_history(
         with contextlib.suppress(QueueShutDown):
             await ui_task
 
-
 async def _build_replay_turns_from_wire(wire_file: WireFile | None) -> list[_ReplayTurn]:
+    """
+     Build Replay Turns From Wire.
+    
+    Args:
+    wire_file: Description.
+    
+    Returns:
+        Description.
+    """
     if wire_file is None or not wire_file.path.exists():
         return []
 
@@ -117,34 +162,47 @@ async def _build_replay_turns_from_wire(wire_file: WireFile | None) -> list[_Rep
         return []
     return list(turns)
 
-
-def _is_clear_command_input(user_input: str | list[ContentPart]) -> bool:
-    if isinstance(user_input, list):
-        text = Message(role="user", content=user_input).extract_text(" ").strip()
-    else:
-        text = str(user_input).strip()
-    call = parse_slash_command_call(text)
-    if call is None:
-        return False
-    return call.name in {"clear", "reset"}
-
-
 def _is_user_message(message: Message) -> bool:
+    """
+     Is User Message.
+    
+    Args:
+    message: Description.
+    
+    Returns:
+        Description.
+    """
     # FIXME: should consider non-text tool call results which are sent as user messages
     if message.role != "user":
         return False
     return not message.extract_text().startswith("<system>CHECKPOINT")
 
-
 def _find_replay_start(history: Sequence[Message]) -> int | None:
+    """
+     Find Replay Start.
+    
+    Args:
+    history: Description.
+    
+    Returns:
+        Description.
+    """
     indices = [idx for idx, message in enumerate(history) if _is_user_message(message)]
     if not indices:
         return None
     # only replay last MAX_REPLAY_TURNS messages
     return indices[max(0, len(indices) - MAX_REPLAY_TURNS)]
 
-
 def _build_replay_turns_from_history(history: Sequence[Message]) -> list[_ReplayTurn]:
+    """
+     Build Replay Turns From History.
+    
+    Args:
+    history: Description.
+    
+    Returns:
+        Description.
+    """
     turns: list[_ReplayTurn] = []
     current_turn: _ReplayTurn | None = None
     for message in history:

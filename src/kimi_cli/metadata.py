@@ -1,21 +1,34 @@
 from __future__ import annotations
-
 import json
 from hashlib import md5
 from pathlib import Path
-
 from kaos import get_current_kaos
 from kaos.local import local_kaos
 from kaos.path import KaosPath
 from pydantic import BaseModel, ConfigDict, Field
-
 from kimi_cli.share import get_share_dir
 from kimi_cli.utils.logging import logger
 
-
 def get_metadata_file() -> Path:
+    """
+    Get Metadata File.
+    """
     return get_share_dir() / "kimi.json"
 
+def save_metadata(metadata: Metadata):
+    """
+    Save Metadata.
+    
+    Args:
+    metadata: Description.
+    
+    Returns:
+        Description.
+    """
+    metadata_file = get_metadata_file()
+    logger.debug("Saving metadata to file: {file}", file=metadata_file)
+    with open(metadata_file, "w", encoding="utf-8") as f:
+        json.dump(metadata.model_dump(), f, indent=2, ensure_ascii=False)
 
 class WorkDirMeta(BaseModel):
     """Metadata for a work directory."""
@@ -38,7 +51,6 @@ class WorkDirMeta(BaseModel):
         session_dir.mkdir(parents=True, exist_ok=True)
         return session_dir
 
-
 class Metadata(BaseModel):
     """Kimi metadata structure."""
 
@@ -60,8 +72,10 @@ class Metadata(BaseModel):
         self.work_dirs.append(wd_meta)
         return wd_meta
 
-
 def load_metadata() -> Metadata:
+    """
+    Load Metadata.
+    """
     metadata_file = get_metadata_file()
     logger.debug("Loading metadata from file: {file}", file=metadata_file)
     if not metadata_file.exists():
@@ -70,10 +84,3 @@ def load_metadata() -> Metadata:
     with open(metadata_file, encoding="utf-8") as f:
         data = json.load(f)
         return Metadata(**data)
-
-
-def save_metadata(metadata: Metadata):
-    metadata_file = get_metadata_file()
-    logger.debug("Saving metadata to file: {file}", file=metadata_file)
-    with open(metadata_file, "w", encoding="utf-8") as f:
-        json.dump(metadata.model_dump(), f, indent=2, ensure_ascii=False)

@@ -1,10 +1,7 @@
 from __future__ import annotations
-
 from collections.abc import Sequence
-
 from kosong.message import Message
 from kosong.tooling.error import ToolRuntimeError
-
 from kimi_cli.llm import ModelCapability
 from kimi_cli.wire.types import (
     ContentPart,
@@ -15,10 +12,55 @@ from kimi_cli.wire.types import (
     VideoURLPart,
 )
 
+# Internal Function Index:
+#
+#   [func] _output_to_content_parts
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _output_to_content_parts(
+    output: str | ContentPart | Sequence[ContentPart],
+) -> list[ContentPart]:
+    """
+     Output To Content Parts.
+    
+    Args:
+    output: Description.
+    
+    Returns:
+        Description.
+    """
+    content: list[ContentPart] = []
+    match output:
+        case str(text):
+            if text:
+                content.append(TextPart(text=text))
+        case ContentPart():
+            content.append(output)
+        case _:
+            content.extend(output)
+    return content
 
 def system(message: str) -> ContentPart:
+    """
+    System.
+    
+    Args:
+    message: Description.
+    
+    Returns:
+        Description.
+    """
     return TextPart(text=f"<system>{message}</system>")
-
 
 def tool_result_to_message(tool_result: ToolResult) -> Message:
     """Convert a tool result to a message."""
@@ -44,22 +86,6 @@ def tool_result_to_message(tool_result: ToolResult) -> Message:
         content=content,
         tool_call_id=tool_result.tool_call_id,
     )
-
-
-def _output_to_content_parts(
-    output: str | ContentPart | Sequence[ContentPart],
-) -> list[ContentPart]:
-    content: list[ContentPart] = []
-    match output:
-        case str(text):
-            if text:
-                content.append(TextPart(text=text))
-        case ContentPart():
-            content.append(output)
-        case _:
-            content.extend(output)
-    return content
-
 
 def check_message(
     message: Message, model_capabilities: set[ModelCapability]

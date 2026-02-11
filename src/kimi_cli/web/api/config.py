@@ -1,17 +1,12 @@
-"""Config API routes."""
-
 from __future__ import annotations
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
 from pydantic import BaseModel, Field
-
 from kimi_cli.config import LLMModel, get_config_file, load_config, save_config
 from kimi_cli.llm import ProviderType, derive_model_capabilities
 from kimi_cli.web.runner.process import KimiCLIRunner
 
-router = APIRouter(prefix="/api/config", tags=["config"])
-
+"""Config API routes."""
 
 class ConfigModel(LLMModel):
     """Model configuration for frontend."""
@@ -19,6 +14,11 @@ class ConfigModel(LLMModel):
     name: str = Field(description="Model key in kimi-cli config (Config.models)")
     provider_type: ProviderType = Field(description="Provider type (LLMProvider.type)")
 
+class ConfigToml(BaseModel):
+    """Raw config.toml content."""
+
+    content: str = Field(description="Raw TOML content")
+    path: str = Field(description="Path to config file")
 
 class GlobalConfig(BaseModel):
     """Global configuration snapshot for frontend."""
@@ -27,6 +27,18 @@ class GlobalConfig(BaseModel):
     default_thinking: bool = Field(description="Current default thinking mode")
     models: list[ConfigModel] = Field(description="All configured models")
 
+router = APIRouter(prefix="/api/config", tags=["config"])
+
+class UpdateConfigTomlRequest(BaseModel):
+    """Request to update config.toml."""
+
+    content: str = Field(description="New TOML content")
+
+class UpdateConfigTomlResponse(BaseModel):
+    """Response after updating config.toml."""
+
+    success: bool = Field(description="Whether the update was successful")
+    error: str | None = Field(default=None, description="Error message if failed")
 
 class UpdateGlobalConfigRequest(BaseModel):
     """Request to update global config."""
@@ -40,7 +52,6 @@ class UpdateGlobalConfigRequest(BaseModel):
         default=None, description="Whether to force restart busy sessions"
     )
 
-
 class UpdateGlobalConfigResponse(BaseModel):
     """Response after updating global config."""
 
@@ -52,26 +63,66 @@ class UpdateGlobalConfigResponse(BaseModel):
         default=None, description="IDs of busy sessions that were skipped"
     )
 
-
-class ConfigToml(BaseModel):
-    """Raw config.toml content."""
-
-    content: str = Field(description="Raw TOML content")
-    path: str = Field(description="Path to config file")
-
-
-class UpdateConfigTomlRequest(BaseModel):
-    """Request to update config.toml."""
-
-    content: str = Field(description="New TOML content")
+# Internal Function Index:
+#
+#   [func] _build_global_config
+#   [func] _get_runner
+#   [func] _ensure_sensitive_apis_allowed
 
 
-class UpdateConfigTomlResponse(BaseModel):
-    """Response after updating config.toml."""
 
-    success: bool = Field(description="Whether the update was successful")
-    error: str | None = Field(default=None, description="Error message if failed")
 
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _ensure_sensitive_apis_allowed(request: Request) -> None:
+    """Block sensitive config writes when restricted."""
+    if getattr(request.app.state, "restrict_sensitive_apis", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sensitive config APIs are disabled in this mode.",
+        )
+
+@router.put("/toml", summary="Update kimi-cli config.toml")
+async def update_config_toml(
+    request: UpdateConfigTomlRequest,
+    http_request: Request,
+) -> UpdateConfigTomlResponse:
+    """Update kimi-cli config.toml."""
+    from kimi_cli.config import load_config_from_string
+
+    _ensure_sensitive_apis_allowed(http_request)
+    try:
+        # Validate the config first
+        load_config_from_string(request.content)
+
+        # Write to file
+        config_file = get_config_file()
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(request.content, encoding="utf-8")
+
+        return UpdateConfigTomlResponse(success=True)
+    except Exception as e:
+        logger.warning(f"Failed to update config.toml: {e}")
+        return UpdateConfigTomlResponse(success=False, error=str(e))
+
+@router.get("/toml", summary="Get kimi-cli config.toml")
+async def get_config_toml(http_request: Request) -> ConfigToml:
+    """Get kimi-cli config.toml."""
+    _ensure_sensitive_apis_allowed(http_request)
+    config_file = get_config_file()
+    if not config_file.exists():
+        return ConfigToml(content="", path=str(config_file))
+    return ConfigToml(content=config_file.read_text(encoding="utf-8"), path=str(config_file))
+
+def _get_runner(req: Request) -> KimiCLIRunner:
+    """Get KimiCLIRunner from FastAPI app state."""
+    return req.app.state.runner
 
 def _build_global_config() -> GlobalConfig:
     """Build GlobalConfig from kimi-cli config."""
@@ -104,26 +155,10 @@ def _build_global_config() -> GlobalConfig:
         models=models,
     )
 
-
-def _get_runner(req: Request) -> KimiCLIRunner:
-    """Get KimiCLIRunner from FastAPI app state."""
-    return req.app.state.runner
-
-
-def _ensure_sensitive_apis_allowed(request: Request) -> None:
-    """Block sensitive config writes when restricted."""
-    if getattr(request.app.state, "restrict_sensitive_apis", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Sensitive config APIs are disabled in this mode.",
-        )
-
-
 @router.get("/", summary="Get global (kimi-cli) config snapshot")
 async def get_global_config() -> GlobalConfig:
     """Get global (kimi-cli) config snapshot."""
     return _build_global_config()
-
 
 @router.patch("/", summary="Update global (kimi-cli) default model/thinking")
 async def update_global_config(
@@ -172,37 +207,3 @@ async def update_global_config(
         restarted_session_ids=restarted if restarted else None,
         skipped_busy_session_ids=skipped_busy if skipped_busy else None,
     )
-
-
-@router.get("/toml", summary="Get kimi-cli config.toml")
-async def get_config_toml(http_request: Request) -> ConfigToml:
-    """Get kimi-cli config.toml."""
-    _ensure_sensitive_apis_allowed(http_request)
-    config_file = get_config_file()
-    if not config_file.exists():
-        return ConfigToml(content="", path=str(config_file))
-    return ConfigToml(content=config_file.read_text(encoding="utf-8"), path=str(config_file))
-
-
-@router.put("/toml", summary="Update kimi-cli config.toml")
-async def update_config_toml(
-    request: UpdateConfigTomlRequest,
-    http_request: Request,
-) -> UpdateConfigTomlResponse:
-    """Update kimi-cli config.toml."""
-    from kimi_cli.config import load_config_from_string
-
-    _ensure_sensitive_apis_allowed(http_request)
-    try:
-        # Validate the config first
-        load_config_from_string(request.content)
-
-        # Write to file
-        config_file = get_config_file()
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        config_file.write_text(request.content, encoding="utf-8")
-
-        return UpdateConfigTomlResponse(success=True)
-    except Exception as e:
-        logger.warning(f"Failed to update config.toml: {e}")
-        return UpdateConfigTomlResponse(success=False, error=str(e))

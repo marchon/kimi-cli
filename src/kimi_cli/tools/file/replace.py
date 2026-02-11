@@ -1,10 +1,8 @@
 from pathlib import Path
 from typing import override
-
 from kaos.path import KaosPath
 from kosong.tooling import CallableTool2, ToolError, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul.agent import BuiltinSystemPromptArgs
 from kimi_cli.soul.approval import Approval
 from kimi_cli.tools.display import DisplayBlock
@@ -13,14 +11,18 @@ from kimi_cli.tools.utils import ToolRejectedError, load_desc
 from kimi_cli.utils.diff import build_diff_blocks
 from kimi_cli.utils.path import is_within_directory
 
-
 class Edit(BaseModel):
+    """
+    Edit class.
+    """
     old: str = Field(description="The old string to replace. Can be multi-line.")
     new: str = Field(description="The new string to replace with. Can be multi-line.")
     replace_all: bool = Field(description="Whether to replace all occurrences.", default=False)
 
-
 class Params(BaseModel):
+    """
+    Params class.
+    """
     path: str = Field(
         description=(
             "The path to the file to edit. Absolute paths are required when editing files "
@@ -34,8 +36,10 @@ class Params(BaseModel):
         )
     )
 
-
 class StrReplaceFile(CallableTool2[Params]):
+    """
+    StrReplaceFile class.
+    """
     name: str = "StrReplaceFile"
     description: str = load_desc(Path(__file__).parent / "replace.md")
     params: type[Params] = Params

@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import contextlib
 import importlib
@@ -9,7 +8,6 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, overload
-
 from kosong.tooling import (
     CallableTool,
     CallableTool2,
@@ -27,7 +25,6 @@ from kosong.tooling.error import (
 from kosong.tooling.mcp import convert_mcp_content
 from kosong.utils.typing import JsonType
 from loguru import logger
-
 from kimi_cli.exception import InvalidToolError, MCPRuntimeError
 from kimi_cli.tools import SkipThisTool
 from kimi_cli.tools.utils import ToolRejectedError
@@ -50,7 +47,6 @@ if TYPE_CHECKING:
 
 current_tool_call = ContextVar[ToolCall | None]("current_tool_call", default=None)
 
-
 def get_current_tool_call_or_none() -> ToolCall | None:
     """
     Get the current tool call or None.
@@ -58,17 +54,26 @@ def get_current_tool_call_or_none() -> ToolCall | None:
     """
     return current_tool_call.get()
 
+@dataclass(slots=True)
+class MCPServerInfo:
+    """
+    MCPServerInfo class.
+    """
+    status: Literal["pending", "connecting", "connected", "failed", "unauthorized"]
+    client: fastmcp.Client[Any]
+    tools: list[MCPTool[Any]]
 
 type ToolType = CallableTool | CallableTool2[Any]
-
 
 if TYPE_CHECKING:
 
     def type_check(kimi_toolset: KimiToolset):
         _: Toolset = kimi_toolset
 
-
 class KimiToolset:
+    """
+    KimiToolset class.
+    """
     def __init__(self) -> None:
         self._tool_dict: dict[str, ToolType] = {}
         self._mcp_servers: dict[str, MCPServerInfo] = {}
@@ -344,15 +349,10 @@ class KimiToolset:
         for server_info in self._mcp_servers.values():
             await server_info.client.close()
 
-
-@dataclass(slots=True)
-class MCPServerInfo:
-    status: Literal["pending", "connecting", "connected", "failed", "unauthorized"]
-    client: fastmcp.Client[Any]
-    tools: list[MCPTool[Any]]
-
-
 class MCPTool[T: ClientTransport](CallableTool):
+    """
+    MCPTool class.
+    """
     def __init__(
         self,
         server_name: str,
@@ -404,8 +404,10 @@ class MCPTool[T: ClientTransport](CallableTool):
                 )
             raise
 
-
 class WireExternalTool(CallableTool):
+    """
+    WireExternalTool class.
+    """
     def __init__(self, *, name: str, description: str, parameters: dict[str, Any]) -> None:
         super().__init__(
             name=name,
@@ -445,7 +447,6 @@ class WireExternalTool(CallableTool):
                 message=f"External tool call failed: {e}",
                 brief="External tool error",
             )
-
 
 def convert_mcp_tool_result(result: CallToolResult) -> ToolReturnValue:
     """Convert MCP tool result to kosong tool return value.

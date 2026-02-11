@@ -1,15 +1,12 @@
 from __future__ import annotations
-
 import importlib
 import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, cast
-
 import pyperclip
 from PIL import Image, ImageGrab
-
 
 def is_clipboard_available() -> bool:
     """Check if the Pyperclip clipboard is available."""
@@ -19,40 +16,26 @@ def is_clipboard_available() -> bool:
     except Exception:
         return False
 
-
-def grab_image_from_clipboard() -> Image.Image | None:
-    """Read an image from the clipboard if possible."""
-    if sys.platform == "darwin":
-        image = _open_first_image(_read_clipboard_file_paths_macos_native())
-        if image is not None:
-            return image
-
-    payload = ImageGrab.grabclipboard()
-    if payload is None:
-        return None
-    if isinstance(payload, Image.Image):
-        return payload
-    return _open_first_image(payload)
+# Internal Function Index:
+#
+#   [func] _open_first_image
+#   [func] _read_clipboard_file_paths_macos_native
 
 
-def _open_first_image(paths: Iterable[os.PathLike[str] | str]) -> Image.Image | None:
-    for item in paths:
-        try:
-            path = Path(item)
-        except (TypeError, ValueError):
-            continue
-        if not path.is_file():
-            continue
-        try:
-            with Image.open(path) as img:
-                img.load()
-                return img.copy()
-        except Exception:
-            continue
-    return None
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _read_clipboard_file_paths_macos_native() -> list[Path]:
+    """
+     Read Clipboard File Paths Macos Native.
+    """
     try:
         appkit = cast(Any, importlib.import_module("AppKit"))
         foundation = cast(Any, importlib.import_module("Foundation"))
@@ -102,3 +85,42 @@ def _read_clipboard_file_paths_macos_native() -> list[Path]:
         file_items.append(file_list)
 
     return [Path(item) for item in file_items]
+
+def _open_first_image(paths: Iterable[os.PathLike[str] | str]) -> Image.Image | None:
+    """
+     Open First Image.
+    
+    Args:
+    paths: Description.
+    
+    Returns:
+        Description.
+    """
+    for item in paths:
+        try:
+            path = Path(item)
+        except (TypeError, ValueError):
+            continue
+        if not path.is_file():
+            continue
+        try:
+            with Image.open(path) as img:
+                img.load()
+                return img.copy()
+        except Exception:
+            continue
+    return None
+
+def grab_image_from_clipboard() -> Image.Image | None:
+    """Read an image from the clipboard if possible."""
+    if sys.platform == "darwin":
+        image = _open_first_image(_read_clipboard_file_paths_macos_native())
+        if image is not None:
+            return image
+
+    payload = ImageGrab.grabclipboard()
+    if payload is None:
+        return None
+    if isinstance(payload, Image.Image):
+        return payload
+    return _open_first_image(payload)

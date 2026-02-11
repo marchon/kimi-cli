@@ -1,22 +1,41 @@
 from __future__ import annotations
-
 import json
 import platform
 from typing import Annotated, TypedDict
-
 import typer
-
 from kimi_cli.constant import VERSION
 
+cli = typer.Typer(help="Show version and protocol information.")
 
 class InfoData(TypedDict):
+    """
+    InfoData class.
+    """
     kimi_cli_version: str
     agent_spec_versions: list[str]
     wire_protocol_version: str
     python_version: str
 
+# Internal Function Index:
+#
+#   [func] _collect_info
+#   [func] _emit_info
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _collect_info() -> InfoData:
+    """
+     Collect Info.
+    """
     from kimi_cli.agentspec import SUPPORTED_AGENT_SPEC_VERSIONS
     from kimi_cli.wire.protocol import WIRE_PROTOCOL_VERSION
 
@@ -27,8 +46,16 @@ def _collect_info() -> InfoData:
         "python_version": platform.python_version(),
     }
 
-
 def _emit_info(json_output: bool) -> None:
+    """
+     Emit Info.
+    
+    Args:
+    json_output: Description.
+    
+    Returns:
+        Description.
+    """
     info = _collect_info()
     if json_output:
         typer.echo(json.dumps(info, ensure_ascii=False))
@@ -44,10 +71,6 @@ def _emit_info(json_output: bool) -> None:
     ]
     for line in lines:
         typer.echo(line)
-
-
-cli = typer.Typer(help="Show version and protocol information.")
-
 
 @cli.callback(invoke_without_command=True)
 def info(

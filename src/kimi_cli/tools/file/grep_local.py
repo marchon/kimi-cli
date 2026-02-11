@@ -1,8 +1,3 @@
-"""
-The local version of the Grep tool using ripgrep.
-Be cautious that `KaosPath` is not used in this implementation.
-"""
-
 import asyncio
 import platform
 import shutil
@@ -12,20 +7,25 @@ import tempfile
 import zipfile
 from pathlib import Path
 from typing import override
-
 import aiohttp
 import ripgrepy  # type: ignore[reportMissingTypeStubs]
 from kosong.tooling import CallableTool2, ToolError, ToolReturnValue
 from pydantic import BaseModel, Field
-
 import kimi_cli
 from kimi_cli.share import get_share_dir
 from kimi_cli.tools.utils import ToolResultBuilder, load_desc
 from kimi_cli.utils.aiohttp import new_client_session
 from kimi_cli.utils.logging import logger
 
+"""
+The local version of the Grep tool using ripgrep.
+Be cautious that `KaosPath` is not used in this implementation.
+"""
 
 class Params(BaseModel):
+    """
+    Params class.
+    """
     pattern: str = Field(
         description="The regular expression pattern to search for in file contents"
     )
@@ -112,34 +112,34 @@ class Params(BaseModel):
         default=False,
     )
 
+RG_BASE_URL = "http://cdn.kimi.com/binaries/kimi-cli/rg"
 
 RG_VERSION = "15.0.0"
-RG_BASE_URL = "http://cdn.kimi.com/binaries/kimi-cli/rg"
-_RG_DOWNLOAD_LOCK = asyncio.Lock()
+
+# Internal Function Index:
+#
+#   [func] _RG_DOWNLOAD_LOCK
+#   [func] _rg_binary_name
+#   [func] _find_existing_rg
+#   [func] _detect_target
+#   [func] _download_and_install_rg
+#   [func] _ensure_rg_path
 
 
-def _rg_binary_name() -> str:
-    return "rg.exe" if platform.system() == "Windows" else "rg"
 
 
-def _find_existing_rg(bin_name: str) -> Path | None:
-    share_bin = get_share_dir() / "bin" / bin_name
-    if share_bin.is_file():
-        return share_bin
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
 
-    assert kimi_cli.__file__ is not None
-    local_dep = Path(kimi_cli.__file__).parent / "deps" / "bin" / bin_name
-    if local_dep.is_file():
-        return local_dep
-
-    system_rg = shutil.which("rg")
-    if system_rg:
-        return Path(system_rg)
-
-    return None
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _detect_target() -> str | None:
+    """
+     Detect Target.
+    """
     sys_name = platform.system()
     mach = platform.machine().lower()
 
@@ -163,8 +163,49 @@ def _detect_target() -> str | None:
 
     return f"{arch}-{os_name}"
 
+def _rg_binary_name() -> str:
+    """
+     Rg Binary Name.
+    """
+    return "rg.exe" if platform.system() == "Windows" else "rg"
+
+_RG_DOWNLOAD_LOCK = asyncio.Lock()
+
+def _find_existing_rg(bin_name: str) -> Path | None:
+    """
+     Find Existing Rg.
+    
+    Args:
+    bin_name: Description.
+    
+    Returns:
+        Description.
+    """
+    share_bin = get_share_dir() / "bin" / bin_name
+    if share_bin.is_file():
+        return share_bin
+
+    assert kimi_cli.__file__ is not None
+    local_dep = Path(kimi_cli.__file__).parent / "deps" / "bin" / bin_name
+    if local_dep.is_file():
+        return local_dep
+
+    system_rg = shutil.which("rg")
+    if system_rg:
+        return Path(system_rg)
+
+    return None
 
 async def _download_and_install_rg(bin_name: str) -> Path:
+    """
+     Download And Install Rg.
+    
+    Args:
+    bin_name: Description.
+    
+    Returns:
+        Description.
+    """
     target = _detect_target()
     if not target:
         raise RuntimeError("Unsupported platform for ripgrep download")
@@ -224,8 +265,10 @@ async def _download_and_install_rg(bin_name: str) -> Path:
     logger.info("Installed ripgrep to {destination}", destination=destination)
     return destination
 
-
 async def _ensure_rg_path() -> str:
+    """
+     Ensure Rg Path.
+    """
     bin_name = _rg_binary_name()
     existing = _find_existing_rg(bin_name)
     if existing:
@@ -239,8 +282,10 @@ async def _ensure_rg_path() -> str:
         downloaded = await _download_and_install_rg(bin_name)
         return str(downloaded)
 
-
 class Grep(CallableTool2[Params]):
+    """
+    Grep class.
+    """
     name: str = "Grep"
     description: str = load_desc(Path(__file__).parent / "grep.md")
     params: type[Params] = Params

@@ -1,3 +1,15 @@
+from __future__ import annotations
+import asyncio
+import json
+import sys
+from typing import Any
+from uuid import UUID
+from loguru import logger
+from kimi_cli.app import KimiCLI, enable_logging
+from kimi_cli.cli.mcp import get_global_mcp_config_file
+from kimi_cli.exception import MCPConfigError
+from kimi_cli.web.store.sessions import load_session_by_id
+
 """Worker module for running KimiCLI in a subprocess.
 
 This module is the entry point for the subprocess that runs KimiCLI in wire mode.
@@ -6,22 +18,6 @@ It reads the session configuration from disk and runs KimiCLI.run_wire_stdio().
 Usage:
     python -m kimi_cli.web.runner.worker <session_id>
 """
-
-from __future__ import annotations
-
-import asyncio
-import json
-import sys
-from typing import Any
-from uuid import UUID
-
-from loguru import logger
-
-from kimi_cli.app import KimiCLI, enable_logging
-from kimi_cli.cli.mcp import get_global_mcp_config_file
-from kimi_cli.exception import MCPConfigError
-from kimi_cli.web.store.sessions import load_session_by_id
-
 
 async def run_worker(session_id: UUID) -> None:
     """Run the KimiCLI worker for a session."""
@@ -60,7 +56,6 @@ async def run_worker(session_id: UUID) -> None:
     # Run in wire stdio mode
     await kimi_cli.run_wire_stdio()
 
-
 def main() -> None:
     """Entry point for the worker subprocess."""
     if len(sys.argv) < 2:
@@ -78,7 +73,6 @@ def main() -> None:
 
     # Run the async worker
     asyncio.run(run_worker(session_id))
-
 
 if __name__ == "__main__":
     main()

@@ -1,18 +1,27 @@
 from __future__ import annotations
-
 import asyncio
 import uuid
 from dataclasses import dataclass
 from typing import Literal
-
 from kimi_cli.soul.toolset import get_current_tool_call_or_none
 from kimi_cli.utils.aioqueue import Queue
 from kimi_cli.utils.logging import logger
 from kimi_cli.wire.types import DisplayBlock
 
+class ApprovalState:
+    """
+    ApprovalState class.
+    """
+    def __init__(self, yolo: bool = False):
+        self.yolo = yolo
+        self.auto_approve_actions: set[str] = set()  # TODO: persist across sessions
+        """Set of action names that should automatically be approved."""
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Request:
+    """
+    Request class.
+    """
     id: str
     tool_call_id: str
     sender: str
@@ -20,18 +29,10 @@ class Request:
     description: str
     display: list[DisplayBlock]
 
-
-type Response = Literal["approve", "approve_for_session", "reject"]
-
-
-class ApprovalState:
-    def __init__(self, yolo: bool = False):
-        self.yolo = yolo
-        self.auto_approve_actions: set[str] = set()  # TODO: persist across sessions
-        """Set of action names that should automatically be approved."""
-
-
 class Approval:
+    """
+    Approval class.
+    """
     def __init__(self, yolo: bool = False, *, state: ApprovalState | None = None):
         self._request_queue = Queue[Request]()
         self._requests: dict[str, tuple[Request, asyncio.Future[bool]]] = {}
@@ -144,3 +145,5 @@ class Approval:
                 future.set_result(True)
             case "reject":
                 future.set_result(False)
+
+type Response = Literal["approve", "approve_for_session", "reject"]

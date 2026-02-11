@@ -1,8 +1,6 @@
 from __future__ import annotations
-
 import os
 from pathlib import Path
-
 
 def get_share_dir() -> Path:
     """Get the share directory path."""

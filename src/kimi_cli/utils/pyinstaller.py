@@ -1,8 +1,6 @@
 from __future__ import annotations
-
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-hiddenimports = collect_submodules("kimi_cli.tools")
 datas = (
     collect_data_files(
         "kimi_cli",
@@ -29,3 +27,5 @@ datas = (
         includes=["../fastmcp-*.dist-info/*"],
     )
 )
+
+hiddenimports = collect_submodules("kimi_cli.tools")

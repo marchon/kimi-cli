@@ -1,19 +1,51 @@
 import re
 from pathlib import Path
-
 from jinja2 import Environment, Undefined
 from kosong.tooling import BriefDisplayBlock, DisplayBlock, ToolError, ToolReturnValue
 from kosong.utils.typing import JsonType
 
+DEFAULT_MAX_CHARS = 50_000
+
+DEFAULT_MAX_LINE_LENGTH = 2000
+
+class ToolRejectedError(ToolError):
+    """
+    ToolRejectedError class.
+    """
+    def __init__(self):
+        super().__init__(
+            message=(
+                "The tool call is rejected by the user. "
+                "Please follow the new instructions from the user."
+            ),
+            brief="Rejected by user",
+        )
+
+# Internal Function Index:
+#
+#   [class] _KeepPlaceholderUndefined
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 class _KeepPlaceholderUndefined(Undefined):
+    """
+    _KeepPlaceholderUndefined class.
+    """
     def __str__(self) -> str:
         if self._undefined_name is None:
             return ""
         return f"${{{self._undefined_name}}}"
 
     __repr__ = __str__
-
 
 def load_desc(path: Path, context: dict[str, object] | None = None) -> str:
     """Load a tool description from a file, rendered via Jinja2."""
@@ -29,7 +61,6 @@ def load_desc(path: Path, context: dict[str, object] | None = None) -> str:
     template = env.from_string(description)
     return template.render(context or {})
 
-
 def truncate_line(line: str, max_length: int, marker: str = "...") -> str:
     """
     Truncate a line if it exceeds `max_length`, preserving the beginning and the line break.
@@ -44,12 +75,6 @@ def truncate_line(line: str, max_length: int, marker: str = "...") -> str:
     end = marker + linebreak
     max_length = max(max_length, len(end))
     return line[: max_length - len(end)] + end
-
-
-# Default output limits
-DEFAULT_MAX_CHARS = 50_000
-DEFAULT_MAX_LINE_LENGTH = 2000
-
 
 class ToolResultBuilder:
     """
@@ -176,15 +201,4 @@ class ToolResultBuilder:
             message=final_message,
             display=([BriefDisplayBlock(text=brief)] if brief else []) + self._display,
             extras=self._extras,
-        )
-
-
-class ToolRejectedError(ToolError):
-    def __init__(self):
-        super().__init__(
-            message=(
-                "The tool call is rejected by the user. "
-                "Please follow the new instructions from the user."
-            ),
-            brief="Rejected by user",
         )

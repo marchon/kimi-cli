@@ -1,18 +1,15 @@
 from __future__ import annotations
-
 import asyncio
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
 import pydantic
 from jinja2 import Environment as JinjaEnvironment
 from jinja2 import StrictUndefined, TemplateError, UndefinedError
 from kaos.path import KaosPath
 from kosong.tooling import Toolset
-
 from kimi_cli.agentspec import load_agent_spec
 from kimi_cli.auth.oauth import OAuthManager
 from kimi_cli.config import Config
@@ -30,6 +27,15 @@ from kimi_cli.utils.path import list_directory
 if TYPE_CHECKING:
     from fastmcp.mcp_config import MCPConfig
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Agent:
+    """The loaded agent."""
+
+    name: str
+    system_prompt: str
+    toolset: Toolset
+    runtime: Runtime
+    """Each agent has its own runtime, which should be derived from its main agent."""
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BuiltinSystemPromptArgs:
@@ -46,8 +52,39 @@ class BuiltinSystemPromptArgs:
     KIMI_SKILLS: str
     """Formatted information about available skills."""
 
+class LaborMarket:
+    """
+    LaborMarket class.
+    """
+    def __init__(self):
+        self.fixed_subagents: dict[str, Agent] = {}
+        self.fixed_subagent_descs: dict[str, str] = {}
+        self.dynamic_subagents: dict[str, Agent] = {}
+
+    @property
+    def subagents(self) -> Mapping[str, Agent]:
+        """Get all subagents in the labor market."""
+        return {**self.fixed_subagents, **self.dynamic_subagents}
+
+    def add_fixed_subagent(self, name: str, agent: Agent, description: str):
+        """Add a fixed subagent."""
+        self.fixed_subagents[name] = agent
+        self.fixed_subagent_descs[name] = description
+
+    def add_dynamic_subagent(self, name: str, agent: Agent):
+        """Add a dynamic subagent."""
+        self.dynamic_subagents[name] = agent
 
 async def load_agents_md(work_dir: KaosPath) -> str | None:
+    """
+    Load Agents Md.
+    
+    Args:
+    work_dir: Description.
+    
+    Returns:
+        Description.
+    """
     paths = [
         work_dir / "AGENTS.md",
         work_dir / "agents.md",
@@ -58,7 +95,6 @@ async def load_agents_md(work_dir: KaosPath) -> str | None:
             return (await path.read_text()).strip()
     logger.info("No AGENTS.md found in {work_dir}", work_dir=work_dir)
     return None
-
 
 @dataclass(slots=True, kw_only=True)
 class Runtime:
@@ -153,38 +189,57 @@ class Runtime:
             skills=self.skills,
         )
 
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class Agent:
-    """The loaded agent."""
-
-    name: str
-    system_prompt: str
-    toolset: Toolset
-    runtime: Runtime
-    """Each agent has its own runtime, which should be derived from its main agent."""
+# Internal Function Index:
+#
+#   [func] _load_system_prompt
 
 
-class LaborMarket:
-    def __init__(self):
-        self.fixed_subagents: dict[str, Agent] = {}
-        self.fixed_subagent_descs: dict[str, str] = {}
-        self.dynamic_subagents: dict[str, Agent] = {}
 
-    @property
-    def subagents(self) -> Mapping[str, Agent]:
-        """Get all subagents in the labor market."""
-        return {**self.fixed_subagents, **self.dynamic_subagents}
 
-    def add_fixed_subagent(self, name: str, agent: Agent, description: str):
-        """Add a fixed subagent."""
-        self.fixed_subagents[name] = agent
-        self.fixed_subagent_descs[name] = description
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
 
-    def add_dynamic_subagent(self, name: str, agent: Agent):
-        """Add a dynamic subagent."""
-        self.dynamic_subagents[name] = agent
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
+
+def _load_system_prompt(
+    path: Path, args: dict[str, str], builtin_args: BuiltinSystemPromptArgs
+) -> str:
+    """
+     Load System Prompt.
+    
+    Args:
+    path: Description.
+    args: Description.
+    builtin_args: Description.
+    
+    Returns:
+        Description.
+    """
+    logger.info("Loading system prompt: {path}", path=path)
+    system_prompt = path.read_text(encoding="utf-8").strip()
+    logger.debug(
+        "Substituting system prompt with builtin args: {builtin_args}, spec args: {spec_args}",
+        builtin_args=builtin_args,
+        spec_args=args,
+    )
+    env = JinjaEnvironment(
+        keep_trailing_newline=True,
+        lstrip_blocks=True,
+        trim_blocks=True,
+        variable_start_string="${",
+        variable_end_string="}",
+        undefined=StrictUndefined,
+    )
+    try:
+        template = env.from_string(system_prompt)
+        return template.render(asdict(builtin_args), **args)
+    except UndefinedError as exc:
+        raise SystemPromptTemplateError(f"Missing system prompt arg in {path}: {exc}") from exc
+    except TemplateError as exc:
+        raise SystemPromptTemplateError(f"Invalid system prompt template: {path}: {exc}") from exc
 
 async def load_agent(
     agent_file: Path,
@@ -264,30 +319,3 @@ async def load_agent(
         toolset=toolset,
         runtime=runtime,
     )
-
-
-def _load_system_prompt(
-    path: Path, args: dict[str, str], builtin_args: BuiltinSystemPromptArgs
-) -> str:
-    logger.info("Loading system prompt: {path}", path=path)
-    system_prompt = path.read_text(encoding="utf-8").strip()
-    logger.debug(
-        "Substituting system prompt with builtin args: {builtin_args}, spec args: {spec_args}",
-        builtin_args=builtin_args,
-        spec_args=args,
-    )
-    env = JinjaEnvironment(
-        keep_trailing_newline=True,
-        lstrip_blocks=True,
-        trim_blocks=True,
-        variable_start_string="${",
-        variable_end_string="}",
-        undefined=StrictUndefined,
-    )
-    try:
-        template = env.from_string(system_prompt)
-        return template.render(asdict(builtin_args), **args)
-    except UndefinedError as exc:
-        raise SystemPromptTemplateError(f"Missing system prompt arg in {path}: {exc}") from exc
-    except TemplateError as exc:
-        raise SystemPromptTemplateError(f"Invalid system prompt template: {path}: {exc}") from exc

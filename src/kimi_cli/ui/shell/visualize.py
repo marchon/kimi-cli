@@ -1,11 +1,9 @@
 from __future__ import annotations
-
 import asyncio
 from collections import deque
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from typing import NamedTuple
-
 import streamingjson  # type: ignore[reportMissingTypeStubs]
 from kosong.message import Message
 from kosong.tooling import ToolError, ToolOk
@@ -16,7 +14,6 @@ from rich.padding import Padding
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.text import Text
-
 from kimi_cli.tools import extract_key_argument
 from kimi_cli.ui.shell.console import console
 from kimi_cli.ui.shell.keyboard import KeyboardListener, KeyEvent
@@ -54,11 +51,101 @@ from kimi_cli.wire.types import (
     WireMessage,
 )
 
-MAX_SUBAGENT_TOOL_CALLS_TO_SHOW = 4
-
-# Truncation limits for approval request display
 MAX_PREVIEW_LINES = 4
 
+MAX_SUBAGENT_TOOL_CALLS_TO_SHOW = 4
+
+# Internal Function Index:
+#
+#   [class] _ContentBlock
+#   [class] _ToolCallBlock
+#   [class] _ApprovalContentBlock
+#   [class] _ApprovalRequestPanel
+#   [func] _show_approval_in_pager
+#   [class] _StatusBlock
+#   [func] _keyboard_listener
+#   [class] _LiveView
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+class _ApprovalContentBlock(NamedTuple):
+    """A pre-rendered content block for approval request with line count."""
+
+    text: str
+    lines: int
+    style: str = ""
+    lexer: str = ""
+
+@asynccontextmanager
+async def _keyboard_listener(
+    handler: Callable[[KeyboardListener, KeyEvent], Awaitable[None]],
+):
+    """
+     Keyboard Listener.
+    
+    Args:
+    handler: Description.
+    
+    Returns:
+        Description.
+    """
+    listener = KeyboardListener()
+    await listener.start()
+
+    async def _keyboard():
+        while True:
+            event = await listener.get()
+            await handler(listener, event)
+
+    task = asyncio.create_task(_keyboard())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+        await listener.stop()
+
+def _show_approval_in_pager(panel: _ApprovalRequestPanel) -> None:
+    """Show the full approval request content in a pager."""
+    with console.screen(), console.pager(styles=True):
+        # Header: matches the style in _ApprovalRequestPanel.render()
+        console.print(
+            Text.from_markup(
+                "[yellow]⚠ "
+                f"{escape(panel.request.sender)} is requesting approval to "
+                f"{escape(panel.request.action)}:[/yellow]"
+            )
+        )
+        console.print()
+
+        # Render full content (no truncation)
+        for renderable in panel.render_full():
+            console.print(renderable)
+
+class _StatusBlock:
+    """
+    _StatusBlock class.
+    """
+    def __init__(self, initial: StatusUpdate) -> None:
+        self.text = Text("", justify="right")
+        self.update(initial)
+
+    def render(self) -> RenderableType:
+        return self.text
+
+    def update(self, status: StatusUpdate) -> None:
+        if status.context_usage is not None:
+            self.text.plain = f"context: {status.context_usage:.1%}"
 
 async def visualize(
     wire: WireUISide,
@@ -77,8 +164,10 @@ async def visualize(
     view = _LiveView(initial_status, cancel_event)
     await view.visualize_loop(wire)
 
-
 class _ContentBlock:
+    """
+    _ContentBlock class.
+    """
     def __init__(self, is_think: bool):
         self.is_think = is_think
         self._spinner = Spinner("dots", "Thinking..." if is_think else "Composing...")
@@ -99,8 +188,10 @@ class _ContentBlock:
     def append(self, content: str) -> None:
         self.raw_text += content
 
-
 class _ToolCallBlock:
+    """
+    _ToolCallBlock class.
+    """
     class FinishedSubCall(NamedTuple):
         call: ToolCall
         result: ToolReturnValue
@@ -250,17 +341,10 @@ class _ToolCallBlock:
                     lines.append(f"- {todo.title}")
         return "\n".join(lines)
 
-
-class _ApprovalContentBlock(NamedTuple):
-    """A pre-rendered content block for approval request with line count."""
-
-    text: str
-    lines: int
-    style: str = ""
-    lexer: str = ""
-
-
 class _ApprovalRequestPanel:
+    """
+    _ApprovalRequestPanel class.
+    """
     def __init__(self, request: ApprovalRequest):
         self.request = request
         self.options: list[tuple[str, ApprovalResponse.Kind]] = [
@@ -390,61 +474,10 @@ class _ApprovalRequestPanel:
         """Get the approval response based on selected option."""
         return self.options[self.selected_index][1]
 
-
-def _show_approval_in_pager(panel: _ApprovalRequestPanel) -> None:
-    """Show the full approval request content in a pager."""
-    with console.screen(), console.pager(styles=True):
-        # Header: matches the style in _ApprovalRequestPanel.render()
-        console.print(
-            Text.from_markup(
-                "[yellow]⚠ "
-                f"{escape(panel.request.sender)} is requesting approval to "
-                f"{escape(panel.request.action)}:[/yellow]"
-            )
-        )
-        console.print()
-
-        # Render full content (no truncation)
-        for renderable in panel.render_full():
-            console.print(renderable)
-
-
-class _StatusBlock:
-    def __init__(self, initial: StatusUpdate) -> None:
-        self.text = Text("", justify="right")
-        self.update(initial)
-
-    def render(self) -> RenderableType:
-        return self.text
-
-    def update(self, status: StatusUpdate) -> None:
-        if status.context_usage is not None:
-            self.text.plain = f"context: {status.context_usage:.1%}"
-
-
-@asynccontextmanager
-async def _keyboard_listener(
-    handler: Callable[[KeyboardListener, KeyEvent], Awaitable[None]],
-):
-    listener = KeyboardListener()
-    await listener.start()
-
-    async def _keyboard():
-        while True:
-            event = await listener.get()
-            await handler(listener, event)
-
-    task = asyncio.create_task(_keyboard())
-    try:
-        yield
-    finally:
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
-        await listener.stop()
-
-
 class _LiveView:
+    """
+    _LiveView class.
+    """
     def __init__(self, initial_status: StatusUpdate, cancel_event: asyncio.Event | None = None):
         self._cancel_event = cancel_event
 

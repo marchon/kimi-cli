@@ -1,3 +1,7 @@
+from __future__ import annotations
+import os
+import sys
+
 """Utilities for subprocess environment handling.
 
 This module provides utilities to handle environment variables when spawning
@@ -8,17 +12,25 @@ which can cause conflicts when spawning external programs that expect system lib
 See: https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html
 """
 
-from __future__ import annotations
+# Internal Function Index:
+#
+#   [func] _PYINSTALLER_LD_VARS
 
-import os
-import sys
 
-# Environment variables that PyInstaller may modify on Linux
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
 _PYINSTALLER_LD_VARS = [
     "LD_LIBRARY_PATH",
     "LD_PRELOAD",
 ]
-
 
 def get_clean_env(base_env: dict[str, str] | None = None) -> dict[str, str]:
     """

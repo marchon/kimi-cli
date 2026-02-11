@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-
 from . import (
     Flow,
     FlowEdge,
@@ -13,8 +11,53 @@ from . import (
     validate_flow,
 )
 
-_NODE_ID_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./-]*")
+# Internal Function Index:
+#
+#   [func] _NODE_ID_RE
+#   [func] _BLOCK_TAG_RE
+#   [func] _PROPERTY_SEGMENTS
+#   [class] _NodeDef
+#   [func] _normalize_markdown_blocks
+#   [func] _strip_unquoted_comment
+#   [func] _dedent_block
+#   [func] _escape_quoted_line
+#   [func] _iter_top_level_statements
+#   [func] _has_unquoted_token
+#   [func] _parse_edge_statement
+#   [func] _parse_node_statement
+#   [func] _parse_node_id
+#   [func] _is_property_path
+#   [func] _parse_label
+#   [func] _parse_quoted_label
+#   [func] _split_on_token
+#   [func] _split_unquoted_once
+#   [func] _add_node
+#   [func] _infer_decision_nodes
+#   [func] _line_error
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
 _BLOCK_TAG_RE = re.compile(r"^\|md$")
+
+_NODE_ID_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./-]*")
+
+@dataclass(frozen=True, slots=True)
+class _NodeDef:
+    """
+    _NodeDef class.
+    """
+    node: FlowNode
+    explicit: bool
+
 _PROPERTY_SEGMENTS = {
     "shape",
     "style",
@@ -44,14 +87,16 @@ _PROPERTY_SEGMENTS = {
     "tooltip",
 }
 
-
-@dataclass(frozen=True, slots=True)
-class _NodeDef:
-    node: FlowNode
-    explicit: bool
-
-
 def parse_d2_flowchart(text: str) -> Flow:
+    """
+    Parse D2 Flowchart.
+    
+    Args:
+    text: Description.
+    
+    Returns:
+        Description.
+    """
     # Normalize D2 markdown blocks into quoted labels so the parser can stay line-based.
     text = _normalize_markdown_blocks(text)
     nodes: dict[str, _NodeDef] = {}
@@ -71,8 +116,16 @@ def parse_d2_flowchart(text: str) -> Flow:
     begin_id, end_id = validate_flow(flow_nodes, outgoing)
     return Flow(nodes=flow_nodes, outgoing=outgoing, begin_id=begin_id, end_id=end_id)
 
-
 def _normalize_markdown_blocks(text: str) -> str:
+    """
+     Normalize Markdown Blocks.
+    
+    Args:
+    text: Description.
+    
+    Returns:
+        Description.
+    """
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = normalized.split("\n")
     out_lines: list[str] = []
@@ -128,8 +181,16 @@ def _normalize_markdown_blocks(text: str) -> str:
 
     return "\n".join(out_lines)
 
-
 def _strip_unquoted_comment(text: str) -> str:
+    """
+     Strip Unquoted Comment.
+    
+    Args:
+    text: Description.
+    
+    Returns:
+        Description.
+    """
     in_single = False
     in_double = False
     escape = False
@@ -150,8 +211,16 @@ def _strip_unquoted_comment(text: str) -> str:
             return text[:idx]
     return text
 
-
 def _dedent_block(lines: list[str]) -> list[str]:
+    """
+     Dedent Block.
+    
+    Args:
+    lines: Description.
+    
+    Returns:
+        Description.
+    """
     indent: int | None = None
     for line in lines:
         if not line.strip():
@@ -164,12 +233,28 @@ def _dedent_block(lines: list[str]) -> list[str]:
         return ["" for _ in lines]
     return [line[indent:] if len(line) >= indent else "" for line in lines]
 
-
 def _escape_quoted_line(line: str) -> str:
+    """
+     Escape Quoted Line.
+    
+    Args:
+    line: Description.
+    
+    Returns:
+        Description.
+    """
     return line.replace("\\", "\\\\").replace('"', '\\"')
 
-
 def _iter_top_level_statements(text: str) -> Iterable[tuple[int, str]]:
+    """
+     Iter Top Level Statements.
+    
+    Args:
+    text: Description.
+    
+    Returns:
+        Description.
+    """
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     brace_depth = 0
     in_single = False
@@ -254,11 +339,19 @@ def _iter_top_level_statements(text: str) -> Iterable[tuple[int, str]]:
     if statement:
         yield stmt_line, statement
 
-
 def _has_unquoted_token(text: str, token: str) -> bool:
+    """
+     Has Unquoted Token.
+    
+    Args:
+    text: Description.
+    token: Description.
+    
+    Returns:
+        Description.
+    """
     parts = _split_on_token(text, token)
     return len(parts) > 1
-
 
 def _parse_edge_statement(
     statement: str,
@@ -266,6 +359,18 @@ def _parse_edge_statement(
     nodes: dict[str, _NodeDef],
     outgoing: dict[str, list[FlowEdge]],
 ) -> None:
+    """
+     Parse Edge Statement.
+    
+    Args:
+    statement: Description.
+    line_no: Description.
+    nodes: Description.
+    outgoing: Description.
+    
+    Returns:
+        Description.
+    """
     parts = _split_on_token(statement, "->")
     if len(parts) < 2:
         raise FlowParseError(_line_error(line_no, "Expected edge arrow"))
@@ -297,8 +402,18 @@ def _parse_edge_statement(
     for node_id in node_ids:
         _add_node(nodes, node_id=node_id, label=None, explicit=False, line_no=line_no)
 
-
 def _parse_node_statement(statement: str, line_no: int, nodes: dict[str, _NodeDef]) -> None:
+    """
+     Parse Node Statement.
+    
+    Args:
+    statement: Description.
+    line_no: Description.
+    nodes: Description.
+    
+    Returns:
+        Description.
+    """
     node_text, label_text = _split_unquoted_once(statement, ":")
     if label_text is not None and _is_property_path(node_text):
         return
@@ -312,8 +427,18 @@ def _parse_node_statement(statement: str, line_no: int, nodes: dict[str, _NodeDe
         explicit = True
     _add_node(nodes, node_id=node_id, label=label, explicit=explicit, line_no=line_no)
 
-
 def _parse_node_id(text: str, line_no: int, *, allow_inline_label: bool) -> str:
+    """
+     Parse Node Id.
+    
+    Args:
+    text: Description.
+    line_no: Description.
+    allow_inline_label: Description.
+    
+    Returns:
+        Description.
+    """
     cleaned = text.strip()
     if allow_inline_label and ":" in cleaned:
         cleaned = _split_unquoted_once(cleaned, ":")[0].strip()
@@ -324,8 +449,16 @@ def _parse_node_id(text: str, line_no: int, *, allow_inline_label: bool) -> str:
         raise FlowParseError(_line_error(line_no, f'Invalid node id "{cleaned}"'))
     return match.group(0)
 
-
 def _is_property_path(node_id: str) -> bool:
+    """
+     Is Property Path.
+    
+    Args:
+    node_id: Description.
+    
+    Returns:
+        Description.
+    """
     if "." not in node_id:
         return False
     parts = [part for part in node_id.split(".") if part]
@@ -334,8 +467,17 @@ def _is_property_path(node_id: str) -> bool:
             return True
     return parts[-1] in _PROPERTY_SEGMENTS
 
-
 def _parse_label(text: str, line_no: int) -> str:
+    """
+     Parse Label.
+    
+    Args:
+    text: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     label = text.strip()
     if not label:
         raise FlowParseError(_line_error(line_no, "Label cannot be empty"))
@@ -343,8 +485,17 @@ def _parse_label(text: str, line_no: int) -> str:
         return _parse_quoted_label(label, line_no)
     return label
 
-
 def _parse_quoted_label(text: str, line_no: int) -> str:
+    """
+     Parse Quoted Label.
+    
+    Args:
+    text: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     quote = text[0]
     buf: list[str] = []
     escape = False
@@ -369,8 +520,17 @@ def _parse_quoted_label(text: str, line_no: int) -> str:
         i += 1
     raise FlowParseError(_line_error(line_no, "Unclosed quoted label"))
 
-
 def _split_on_token(text: str, token: str) -> list[str]:
+    """
+     Split On Token.
+    
+    Args:
+    text: Description.
+    token: Description.
+    
+    Returns:
+        Description.
+    """
     parts: list[str] = []
     buf: list[str] = []
     in_single = False
@@ -401,8 +561,17 @@ def _split_on_token(text: str, token: str) -> list[str]:
     parts.append("".join(buf).strip())
     return parts
 
-
 def _split_unquoted_once(text: str, token: str) -> tuple[str, str | None]:
+    """
+     Split Unquoted Once.
+    
+    Args:
+    text: Description.
+    token: Description.
+    
+    Returns:
+        Description.
+    """
     in_single = False
     in_double = False
     escape = False
@@ -423,7 +592,6 @@ def _split_unquoted_once(text: str, token: str) -> tuple[str, str | None]:
             return text[:idx].strip(), text[idx + 1 :].strip()
     return text.strip(), None
 
-
 def _add_node(
     nodes: dict[str, _NodeDef],
     *,
@@ -432,6 +600,19 @@ def _add_node(
     explicit: bool,
     line_no: int,
 ) -> FlowNode:
+    """
+     Add Node.
+    
+    Args:
+    nodes: Description.
+    node_id: Description.
+    label: Description.
+    explicit: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     label = label if label is not None else node_id
     label_norm = label.strip().lower()
     if not label:
@@ -461,11 +642,20 @@ def _add_node(
 
     raise FlowParseError(_line_error(line_no, f'Conflicting definition for node "{node_id}"'))
 
-
 def _infer_decision_nodes(
     nodes: dict[str, FlowNode],
     outgoing: dict[str, list[FlowEdge]],
 ) -> dict[str, FlowNode]:
+    """
+     Infer Decision Nodes.
+    
+    Args:
+    nodes: Description.
+    outgoing: Description.
+    
+    Returns:
+        Description.
+    """
     updated: dict[str, FlowNode] = {}
     for node_id, node in nodes.items():
         kind = node.kind
@@ -477,6 +667,15 @@ def _infer_decision_nodes(
             updated[node_id] = node
     return updated
 
-
 def _line_error(line_no: int, message: str) -> str:
+    """
+     Line Error.
+    
+    Args:
+    line_no: Description.
+    message: Description.
+    
+    Returns:
+        Description.
+    """
     return f"Line {line_no}: {message}"

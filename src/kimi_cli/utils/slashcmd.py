@@ -3,9 +3,11 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import overload
 
-
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SlashCommand[F: Callable[..., None | Awaitable[None]]]:
+    """
+    SlashCommand class.
+    """
     name: str
     description: str
     func: F
@@ -17,6 +19,37 @@ class SlashCommand[F: Callable[..., None | Awaitable[None]]]:
             return f"/{self.name} ({', '.join(self.aliases)})"
         return f"/{self.name}"
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SlashCommandCall:
+    """
+    SlashCommandCall class.
+    """
+    name: str
+    args: str
+    raw_input: str
+
+def parse_slash_command_call(user_input: str) -> SlashCommandCall | None:
+    """
+    Parse a slash command call from user input.
+
+    Returns:
+        SlashCommandCall if a slash command is found, else None. The `args` field contains
+        the raw argument string after the command name.
+    """
+    user_input = user_input.strip()
+    if not user_input or not user_input.startswith("/"):
+        return None
+
+    name_match = re.match(r"^\/([a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)*)", user_input)
+
+    if not name_match:
+        return None
+
+    command_name = name_match.group(1)
+    if len(user_input) > name_match.end() and not user_input[name_match.end()].isspace():
+        return None
+    raw_args = user_input[name_match.end() :].lstrip()
+    return SlashCommandCall(name=command_name, args=raw_args, raw_input=user_input)
 
 class SlashCommandRegistry[F: Callable[..., None | Awaitable[None]]]:
     """Registry for slash commands."""
@@ -91,34 +124,3 @@ class SlashCommandRegistry[F: Callable[..., None | Awaitable[None]]]:
     def list_commands(self) -> list[SlashCommand[F]]:
         """Get all unique primary slash commands (without duplicating aliases)."""
         return list(self._commands.values())
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class SlashCommandCall:
-    name: str
-    args: str
-    raw_input: str
-
-
-def parse_slash_command_call(user_input: str) -> SlashCommandCall | None:
-    """
-    Parse a slash command call from user input.
-
-    Returns:
-        SlashCommandCall if a slash command is found, else None. The `args` field contains
-        the raw argument string after the command name.
-    """
-    user_input = user_input.strip()
-    if not user_input or not user_input.startswith("/"):
-        return None
-
-    name_match = re.match(r"^\/([a-zA-Z0-9_-]+(?::[a-zA-Z0-9_-]+)*)", user_input)
-
-    if not name_match:
-        return None
-
-    command_name = name_match.group(1)
-    if len(user_input) > name_match.end() and not user_input[name_match.end()].isspace():
-        return None
-    raw_args = user_input[name_match.end() :].lstrip()
-    return SlashCommandCall(name=command_name, args=raw_args, raw_input=user_input)

@@ -1,19 +1,16 @@
 from __future__ import annotations
-
 import asyncio
 import shlex
 from collections.abc import Awaitable, Coroutine
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-
 from kosong.chat_provider import APIStatusError, ChatProviderError
 from loguru import logger
 from rich.console import Group, RenderableType
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-
 from kimi_cli.soul import LLMNotSet, LLMNotSupported, MaxStepsReached, RunCancelled, Soul, run_soul
 from kimi_cli.soul.kimisoul import KimiSoul
 from kimi_cli.ui.shell.console import console
@@ -31,8 +28,99 @@ from kimi_cli.utils.subprocess_env import get_clean_env
 from kimi_cli.utils.term import ensure_new_line, ensure_tty_sane
 from kimi_cli.wire.types import ContentPart, StatusUpdate
 
+@dataclass(slots=True)
+class WelcomeInfoItem:
+    """
+    WelcomeInfoItem class.
+    """
+    class Level(Enum):
+        INFO = "grey50"
+        WARN = "yellow"
+        ERROR = "red"
+
+    name: str
+    value: str
+    level: Level = Level.INFO
+
+# Internal Function Index:
+#
+#   [func] _KIMI_BLUE
+#   [func] _LOGO
+#   [func] _print_welcome_info
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_KIMI_BLUE = "dodger_blue1"
+
+_LOGO = f"""\
+[{_KIMI_BLUE}]\
+▐█▛█▛█▌
+▐█████▌\
+[{_KIMI_BLUE}]\
+"""
+
+def _print_welcome_info(name: str, info_items: list[WelcomeInfoItem]) -> None:
+    """
+     Print Welcome Info.
+    
+    Args:
+    name: Description.
+    info_items: Description.
+    
+    Returns:
+        Description.
+    """
+    head = Text.from_markup("Welcome to Kimi Code CLI!")
+    help_text = Text.from_markup("[grey50]Send /help for help information.[/grey50]")
+
+    # Use Table for precise width control
+    logo = Text.from_markup(_LOGO)
+    table = Table(show_header=False, show_edge=False, box=None, padding=(0, 1), expand=False)
+    table.add_column(justify="left")
+    table.add_column(justify="left")
+    table.add_row(logo, Group(head, help_text))
+
+    rows: list[RenderableType] = [table]
+
+    if info_items:
+        rows.append(Text(""))  # empty line
+    for item in info_items:
+        rows.append(Text(f"{item.name}: {item.value}", style=item.level.value))
+
+    if LATEST_VERSION_FILE.exists():
+        from kimi_cli.constant import VERSION as current_version
+
+        latest_version = LATEST_VERSION_FILE.read_text(encoding="utf-8").strip()
+        if semver_tuple(latest_version) > semver_tuple(current_version):
+            rows.append(
+                Text.from_markup(
+                    f"\n[yellow]New version available: {latest_version}. "
+                    "Please run `uv tool upgrade kimi-cli` to upgrade.[/yellow]"
+                )
+            )
+
+    console.print(
+        Panel(
+            Group(*rows),
+            border_style=_KIMI_BLUE,
+            expand=False,
+            padding=(1, 2),
+        )
+    )
 
 class Shell:
+    """
+    Shell class.
+    """
     def __init__(self, soul: Soul, welcome_info: list[WelcomeInfoItem] | None = None):
         self.soul = soul
         self._welcome_info = list(welcome_info or [])
@@ -302,64 +390,3 @@ class Shell:
 
         task.add_done_callback(_cleanup)
         return task
-
-
-_KIMI_BLUE = "dodger_blue1"
-_LOGO = f"""\
-[{_KIMI_BLUE}]\
-▐█▛█▛█▌
-▐█████▌\
-[{_KIMI_BLUE}]\
-"""
-
-
-@dataclass(slots=True)
-class WelcomeInfoItem:
-    class Level(Enum):
-        INFO = "grey50"
-        WARN = "yellow"
-        ERROR = "red"
-
-    name: str
-    value: str
-    level: Level = Level.INFO
-
-
-def _print_welcome_info(name: str, info_items: list[WelcomeInfoItem]) -> None:
-    head = Text.from_markup("Welcome to Kimi Code CLI!")
-    help_text = Text.from_markup("[grey50]Send /help for help information.[/grey50]")
-
-    # Use Table for precise width control
-    logo = Text.from_markup(_LOGO)
-    table = Table(show_header=False, show_edge=False, box=None, padding=(0, 1), expand=False)
-    table.add_column(justify="left")
-    table.add_column(justify="left")
-    table.add_row(logo, Group(head, help_text))
-
-    rows: list[RenderableType] = [table]
-
-    if info_items:
-        rows.append(Text(""))  # empty line
-    for item in info_items:
-        rows.append(Text(f"{item.name}: {item.value}", style=item.level.value))
-
-    if LATEST_VERSION_FILE.exists():
-        from kimi_cli.constant import VERSION as current_version
-
-        latest_version = LATEST_VERSION_FILE.read_text(encoding="utf-8").strip()
-        if semver_tuple(latest_version) > semver_tuple(current_version):
-            rows.append(
-                Text.from_markup(
-                    f"\n[yellow]New version available: {latest_version}. "
-                    "Please run `uv tool upgrade kimi-cli` to upgrade.[/yellow]"
-                )
-            )
-
-    console.print(
-        Panel(
-            Group(*rows),
-            border_style=_KIMI_BLUE,
-            expand=False,
-            padding=(1, 2),
-        )
-    )

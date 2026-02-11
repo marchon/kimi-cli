@@ -1,12 +1,10 @@
 from __future__ import annotations
-
 import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any, Literal
-
 import kosong
 import tenacity
 from kosong import StepResult
@@ -18,7 +16,6 @@ from kosong.chat_provider import (
 )
 from kosong.message import Message
 from tenacity import RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential_jitter
-
 from kimi_cli.llm import ModelCapability
 from kimi_cli.skill import Skill, read_skill_text
 from kimi_cli.skill.flow import Flow, FlowEdge, FlowNode, parse_choice
@@ -56,35 +53,47 @@ from kimi_cli.wire.types import (
     TurnEnd,
 )
 
-if TYPE_CHECKING:
+class BackToTheFuture(Exception):
+    """
+    Raise when we need to revert the context to a previous checkpoint.
+    The main agent loop should catch this exception and handle it.
+    """
 
-    def type_check(soul: KimiSoul):
-        _: Soul = soul
+    def __init__(self, checkpoint_id: int, messages: Sequence[Message]):
+        self.checkpoint_id = checkpoint_id
+        self.messages = messages
 
-
-SKILL_COMMAND_PREFIX = "skill:"
-FLOW_COMMAND_PREFIX = "flow:"
 DEFAULT_MAX_FLOW_MOVES = 1000
 
+FLOW_COMMAND_PREFIX = "flow:"
 
-type StepStopReason = Literal["no_tool_calls", "tool_rejected"]
-
+SKILL_COMMAND_PREFIX = "skill:"
 
 @dataclass(frozen=True, slots=True)
 class StepOutcome:
+    """
+    StepOutcome class.
+    """
     stop_reason: StepStopReason
     assistant_message: Message
 
-
-type TurnStopReason = StepStopReason
-
+type StepStopReason = Literal["no_tool_calls", "tool_rejected"]
 
 @dataclass(frozen=True, slots=True)
 class TurnOutcome:
+    """
+    TurnOutcome class.
+    """
     stop_reason: TurnStopReason
     final_message: Message | None
     step_count: int
 
+type TurnStopReason = StepStopReason
+
+if TYPE_CHECKING:
+
+    def type_check(soul: KimiSoul):
+        _: Soul = soul
 
 class KimiSoul:
     """The soul of Kimi Code CLI."""
@@ -527,19 +536,10 @@ class KimiSoul:
             else "unknown",
         )
 
-
-class BackToTheFuture(Exception):
-    """
-    Raise when we need to revert the context to a previous checkpoint.
-    The main agent loop should catch this exception and handle it.
-    """
-
-    def __init__(self, checkpoint_id: int, messages: Sequence[Message]):
-        self.checkpoint_id = checkpoint_id
-        self.messages = messages
-
-
 class FlowRunner:
+    """
+    FlowRunner class.
+    """
     def __init__(
         self,
         flow: Flow,

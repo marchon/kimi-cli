@@ -1,14 +1,14 @@
 from pathlib import Path
-
 from kosong.tooling import CallableTool2, ToolError, ToolOk, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul.agent import Agent, Runtime
 from kimi_cli.soul.toolset import KimiToolset
 from kimi_cli.tools.utils import load_desc
 
-
 class Params(BaseModel):
+    """
+    Params class.
+    """
     name: str = Field(
         description=(
             "Unique name for this agent configuration (e.g., 'summarizer', 'code_reviewer'). "
@@ -19,8 +19,10 @@ class Params(BaseModel):
         description="System prompt defining the agent's role, capabilities, and boundaries."
     )
 
-
 class CreateSubagent(CallableTool2[Params]):
+    """
+    CreateSubagent class.
+    """
     name: str = "CreateSubagent"
     description: str = load_desc(Path(__file__).parent / "create.md")
     params: type[Params] = Params

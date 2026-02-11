@@ -1,7 +1,4 @@
-"""Sessions API routes."""
-
 from __future__ import annotations
-
 import asyncio
 import json
 import mimetypes
@@ -14,14 +11,12 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import quote
 from uuid import UUID, uuid4
-
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, Response
 from kaos.path import KaosPath
 from loguru import logger
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocket, WebSocketDisconnect
-
 from kimi_cli.metadata import load_metadata, save_metadata
 from kimi_cli.session import Session as KimiCLISession
 from kimi_cli.utils.subprocess_env import get_clean_env
@@ -57,12 +52,173 @@ from kimi_cli.wire.jsonrpc import (
 from kimi_cli.wire.serde import deserialize_wire_message
 from kimi_cli.wire.types import is_request
 
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
-work_dirs_router = APIRouter(prefix="/api/work-dirs", tags=["work-dirs"])
+"""Sessions API routes."""
 
-# Constants
-MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
+CHECKPOINT_USER_PATTERN = re.compile(r"^<system>CHECKPOINT \d+</system>$")
+
+class CreateSessionRequest(BaseModel):
+    """Create session request."""
+
+    work_dir: str | None = None
+    create_dir: bool = False  # Whether to auto-create directory if it doesn't exist
+
 DEFAULT_MAX_PUBLIC_PATH_DEPTH = 6
+
+class ForkSessionRequest(BaseModel):
+    """Fork session request."""
+
+    turn_index: int = Field(..., ge=0)  # 0-based, fork includes this turn and all previous turns
+
+def get_runner(req: Request) -> KimiCLIRunner:
+    """Get the KimiCLIRunner from the FastAPI app state."""
+    return req.app.state.runner
+
+def get_runner_ws(ws: WebSocket) -> KimiCLIRunner:
+    """Get the KimiCLIRunner from the FastAPI app state (for WebSocket routes)."""
+    return ws.app.state.runner
+
+def invalidate_work_dirs_cache() -> None:
+    """Clear the work dirs cache."""
+    global _work_dirs_cache, _work_dirs_cache_time
+    _work_dirs_cache = None
+    _work_dirs_cache_time = 0.0
+
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
+
+router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+
+@router.get("/{session_id}/git-diff", summary="Get git diff stats")
+async def get_session_git_diff(session_id: UUID) -> GitDiffStats:
+    """get git diff stats for the session's work directory"""
+    session = load_session_by_id(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    work_dir = Path(str(session.kimi_cli_session.work_dir))
+
+    # Check if it is a git repository
+    if not (work_dir / ".git").exists():
+        return GitDiffStats(is_git_repo=False)
+
+    try:
+        files: list[GitFileDiff] = []
+        total_add, total_del = 0, 0
+
+        # Check if HEAD exists (repo has at least one commit)
+        check_proc = await asyncio.create_subprocess_exec(
+            "git",
+            "rev-parse",
+            "--verify",
+            "HEAD",
+            cwd=str(work_dir),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+            env=get_clean_env(),
+        )
+        await check_proc.wait()
+        has_head = check_proc.returncode == 0
+
+        if has_head:
+            # Execute git diff --numstat HEAD (including staged and unstaged)
+            proc = await asyncio.create_subprocess_exec(
+                "git",
+                "diff",
+                "--numstat",
+                "HEAD",
+                cwd=str(work_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=get_clean_env(),
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+
+            # Parse output
+            for line in stdout.decode().strip().split("\n"):
+                if not line:
+                    continue
+                parts = line.split("\t")
+                if len(parts) >= 3:
+                    add = int(parts[0]) if parts[0] != "-" else 0
+                    dele = int(parts[1]) if parts[1] != "-" else 0
+                    total_add += add
+                    total_del += dele
+                    # Determine file status
+                    file_status: str = "modified"
+                    if dele == 0 and add > 0:
+                        file_status = "added"
+                    elif add == 0 and dele > 0:
+                        file_status = "deleted"
+                    files.append(
+                        GitFileDiff(
+                            path=parts[2],
+                            additions=add,
+                            deletions=dele,
+                            status=file_status,  # type: ignore[arg-type]
+                        )
+                    )
+
+        # Also get untracked files (new files not yet added to git)
+        untracked_proc = await asyncio.create_subprocess_exec(
+            "git",
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            cwd=str(work_dir),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            env=get_clean_env(),
+        )
+        untracked_stdout, _ = await asyncio.wait_for(untracked_proc.communicate(), timeout=5.0)
+
+        # Add untracked files to the result
+        for line in untracked_stdout.decode().strip().split("\n"):
+            if line:
+                files.append(
+                    GitFileDiff(
+                        path=line,
+                        additions=0,  # Cannot count lines for untracked files
+                        deletions=0,
+                        status="added",
+                    )
+                )
+
+        if not has_head:
+            return GitDiffStats(
+                is_git_repo=True,
+                has_changes=len(files) > 0,
+                total_additions=0,
+                total_deletions=0,
+                files=files,
+            )
+
+        return GitDiffStats(
+            is_git_repo=True,
+            has_changes=len(files) > 0,
+            total_additions=total_add,
+            total_deletions=total_del,
+            files=files,
+        )
+    except TimeoutError:
+        return GitDiffStats(is_git_repo=True, error="Git command timed out")
+    except Exception as e:
+        return GitDiffStats(is_git_repo=True, error=str(e))
+
+SENSITIVE_HOME_PATHS = {
+    ".ssh",
+    ".gnupg",
+    ".aws",
+    ".kube",
+}
+
+SENSITIVE_PATH_EXTENSIONS = {
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+    ".kdbx",
+    ".der",
+}
+
 SENSITIVE_PATH_PARTS = {
     "id_rsa",
     "id_ed25519",
@@ -76,23 +232,13 @@ SENSITIVE_PATH_PARTS = {
     ".pypirc",
     ".netrc",
 }
-SENSITIVE_PATH_EXTENSIONS = {
-    ".pem",
-    ".key",
-    ".p12",
-    ".pfx",
-    ".kdbx",
-    ".der",
-}
-# Home directory patterns to detect if resolved path escapes to sensitive locations
-SENSITIVE_HOME_PATHS = {
-    ".ssh",
-    ".gnupg",
-    ".aws",
-    ".kube",
-}
-CHECKPOINT_USER_PATTERN = re.compile(r"^<system>CHECKPOINT \d+</system>$")
 
+class UploadSessionFileResponse(BaseModel):
+    """Upload file response."""
+
+    path: str
+    filename: str
+    size: int
 
 def sanitize_filename(filename: str) -> str:
     """Remove potentially dangerous characters from filename."""
@@ -100,16 +246,91 @@ def sanitize_filename(filename: str) -> str:
     safe = "".join(c for c in filename if c.isalnum() or c in "._- ")
     return safe.strip() or "unnamed"
 
+work_dirs_router = APIRouter(prefix="/api/work-dirs", tags=["work-dirs"])
 
-def get_runner(req: Request) -> KimiCLIRunner:
-    """Get the KimiCLIRunner from the FastAPI app state."""
-    return req.app.state.runner
+@work_dirs_router.get("/startup", summary="Get the startup directory")
+async def get_startup_dir(request: Request) -> str:
+    """Get the directory where kimi web was started."""
+    return request.app.state.startup_dir
+
+# Internal Function Index:
+#
+#   [func] _relative_parts
+#   [func] _is_sensitive_relative_path
+#   [func] _contains_symlink
+#   [func] _is_path_in_sensitive_location
+#   [func] _ensure_public_file_access_allowed
+#   [func] _read_wire_lines
+#   [func] _update_last_session_id
+#   [func] _is_checkpoint_user_message
+#   [func] _work_dirs_cache
+#   [func] _work_dirs_cache_time
+#   [func] _WORK_DIRS_CACHE_TTL
+#   [func] _get_work_dirs_sync
 
 
-def get_runner_ws(ws: WebSocket) -> KimiCLIRunner:
-    """Get the KimiCLIRunner from the FastAPI app state (for WebSocket routes)."""
-    return ws.app.state.runner
 
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_work_dirs_cache: list[str] | None = None
+
+_work_dirs_cache_time: float = 0.0
+
+_WORK_DIRS_CACHE_TTL = 30.0  # seconds
+
+def _get_work_dirs_sync() -> list[str]:
+    """Synchronous helper for get_work_dirs (runs in thread pool)."""
+    import time
+
+    global _work_dirs_cache, _work_dirs_cache_time
+
+    # Check cache
+    now = time.time()
+    if _work_dirs_cache is not None and (now - _work_dirs_cache_time) < _WORK_DIRS_CACHE_TTL:
+        return _work_dirs_cache
+
+    # Build fresh list
+    metadata = load_metadata()
+    work_dirs: list[str] = []
+    for wd in metadata.work_dirs:
+        # Filter out temporary directories
+        if "/tmp" in wd.path or "/var/folders" in wd.path or "/.cache/" in wd.path:
+            continue
+        # Verify directory exists
+        if Path(wd.path).exists():
+            work_dirs.append(wd.path)
+
+    # Update cache
+    result = work_dirs[:20]
+    _work_dirs_cache = result
+    _work_dirs_cache_time = now
+    return result
+
+@work_dirs_router.get("/", summary="List available work directories")
+async def get_work_dirs() -> list[str]:
+    """Get a list of available work directories from metadata."""
+    return await asyncio.to_thread(_get_work_dirs_sync)
+
+def _update_last_session_id(session: JointSession) -> None:
+    """Update last_session_id for the session's work directory."""
+    kimi_session = session.kimi_cli_session
+    work_dir = kimi_session.work_dir
+
+    metadata = load_metadata()
+    work_dir_meta = metadata.get_work_dir_meta(work_dir)
+
+    if work_dir_meta is None:
+        work_dir_meta = metadata.new_work_dir_meta(work_dir)
+
+    work_dir_meta.last_session_id = kimi_session.id
+    save_metadata(metadata)
 
 def get_editable_session(
     session_id: UUID,
@@ -131,12 +352,28 @@ def get_editable_session(
         )
     return session
 
-
 def _relative_parts(path: Path) -> list[str]:
+    """
+     Relative Parts.
+    
+    Args:
+    path: Description.
+    
+    Returns:
+        Description.
+    """
     return [part for part in path.parts if part not in {"", "."}]
 
-
 def _is_sensitive_relative_path(rel_path: Path) -> bool:
+    """
+     Is Sensitive Relative Path.
+    
+    Args:
+    rel_path: Description.
+    
+    Returns:
+        Description.
+    """
     parts = _relative_parts(rel_path)
     for part in parts:
         if part.startswith("."):
@@ -144,7 +381,6 @@ def _is_sensitive_relative_path(rel_path: Path) -> bool:
         if part.lower() in SENSITIVE_PATH_PARTS:
             return True
     return rel_path.suffix.lower() in SENSITIVE_PATH_EXTENSIONS
-
 
 def _contains_symlink(path: Path, base: Path) -> bool:
     """Check if any component of the path (relative to base) is a symlink."""
@@ -159,7 +395,6 @@ def _contains_symlink(path: Path, base: Path) -> bool:
         return True
     return False
 
-
 def _is_path_in_sensitive_location(path: Path) -> bool:
     """Check if resolved path points to a sensitive location (e.g., ~/.ssh, ~/.aws)."""
     try:
@@ -173,12 +408,22 @@ def _is_path_in_sensitive_location(path: Path) -> bool:
         pass
     return False
 
-
 def _ensure_public_file_access_allowed(
     rel_path: Path,
     restrict_sensitive_apis: bool,
     max_path_depth: int = DEFAULT_MAX_PUBLIC_PATH_DEPTH,
 ) -> None:
+    """
+     Ensure Public File Access Allowed.
+    
+    Args:
+    rel_path: Description.
+    restrict_sensitive_apis: Description.
+    max_path_depth: Description.
+    
+    Returns:
+        Description.
+    """
     if not restrict_sensitive_apis:
         return
     rel_parts = _relative_parts(rel_path)
@@ -193,7 +438,6 @@ def _ensure_public_file_access_allowed(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access to sensitive files is disabled.",
         )
-
 
 def _read_wire_lines(wire_file: Path) -> list[str]:
     """Read and parse wire.jsonl into JSONRPC event strings (runs in thread)."""
@@ -226,7 +470,6 @@ def _read_wire_lines(wire_file: Path) -> list[str]:
                 continue
     return result
 
-
 async def replay_history(ws: WebSocket, session_dir: Path) -> None:
     """Replay historical wire messages from wire.jsonl to a WebSocket."""
     wire_file = session_dir / "wire.jsonl"
@@ -239,7 +482,6 @@ async def replay_history(ws: WebSocket, session_dir: Path) -> None:
             await ws.send_text(event_text)
     except Exception:
         pass
-
 
 @router.get("/", summary="List all sessions")
 async def list_sessions(
@@ -276,7 +518,6 @@ async def list_sessions(
         session.status = session_process.status if session_process else None
     return cast(list[Session], sessions)
 
-
 @router.get("/{session_id}", summary="Get session")
 async def get_session(
     session_id: UUID,
@@ -289,7 +530,6 @@ async def get_session(
         session.is_running = session_process is not None and session_process.is_running
         session.status = session_process.status if session_process else None
     return session
-
 
 @router.post("/", summary="Create a new session")
 async def create_session(request: CreateSessionRequest | None = None) -> Session:
@@ -349,28 +589,6 @@ async def create_session(request: CreateSessionRequest | None = None) -> Session
         session_dir=str(kimi_cli_session.dir),
     )
 
-
-class CreateSessionRequest(BaseModel):
-    """Create session request."""
-
-    work_dir: str | None = None
-    create_dir: bool = False  # Whether to auto-create directory if it doesn't exist
-
-
-class ForkSessionRequest(BaseModel):
-    """Fork session request."""
-
-    turn_index: int = Field(..., ge=0)  # 0-based, fork includes this turn and all previous turns
-
-
-class UploadSessionFileResponse(BaseModel):
-    """Upload file response."""
-
-    path: str
-    filename: str
-    size: int
-
-
 @router.post("/{session_id}/files", summary="Upload file to session")
 async def upload_session_file(
     session_id: UUID,
@@ -406,7 +624,6 @@ async def upload_session_file(
         filename=file_name,
         size=len(content),
     )
-
 
 @router.get(
     "/{session_id}/uploads/{path:path}",
@@ -453,7 +670,6 @@ async def get_session_upload_file(
             "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}",
         },
     )
-
 
 @router.get(
     "/{session_id}/files/{path:path}",
@@ -543,22 +759,6 @@ async def get_session_file(
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"},
     )
 
-
-def _update_last_session_id(session: JointSession) -> None:
-    """Update last_session_id for the session's work directory."""
-    kimi_session = session.kimi_cli_session
-    work_dir = kimi_session.work_dir
-
-    metadata = load_metadata()
-    work_dir_meta = metadata.get_work_dir_meta(work_dir)
-
-    if work_dir_meta is None:
-        work_dir_meta = metadata.new_work_dir_meta(work_dir)
-
-    work_dir_meta.last_session_id = kimi_session.id
-    save_metadata(metadata)
-
-
 @router.delete("/{session_id}", summary="Delete a session")
 async def delete_session(session_id: UUID, runner: KimiCLIRunner = Depends(get_runner)) -> None:
     """Delete a session."""
@@ -578,7 +778,6 @@ async def delete_session(session_id: UUID, runner: KimiCLIRunner = Depends(get_r
     if session_dir.exists():
         shutil.rmtree(session_dir)
     invalidate_sessions_cache()
-
 
 @router.patch("/{session_id}", summary="Update session")
 async def update_session(
@@ -625,7 +824,6 @@ async def update_session(
             detail="Failed to reload session after update",
         )
     return updated_session
-
 
 def extract_first_turn_from_wire(session_dir: Path) -> tuple[str, str] | None:
     """Extract the first turn's user message and assistant response from wire.jsonl.
@@ -680,7 +878,6 @@ def extract_first_turn_from_wire(session_dir: Path) -> tuple[str, str] | None:
     if user_message and assistant_response_parts:
         return (user_message, "".join(assistant_response_parts))
     return None
-
 
 def truncate_wire_at_turn(wire_path: Path, turn_index: int) -> list[str]:
     """Read wire.jsonl and return all lines up to and including the given turn.
@@ -737,7 +934,6 @@ def truncate_wire_at_turn(wire_path: Path, turn_index: int) -> list[str]:
 
     return lines
 
-
 def _is_checkpoint_user_message(record: dict[str, Any]) -> bool:
     """Whether a context line is the synthetic user checkpoint marker."""
     if record.get("role") != "user":
@@ -755,7 +951,6 @@ def _is_checkpoint_user_message(record: dict[str, Any]) -> bool:
             return CHECKPOINT_USER_PATTERN.fullmatch(text.strip()) is not None
 
     return False
-
 
 def truncate_context_at_turn(context_path: Path, turn_index: int) -> list[str]:
     """Read context.jsonl and return all lines up to and including the given turn.
@@ -793,7 +988,6 @@ def truncate_context_at_turn(context_path: Path, turn_index: int) -> list[str]:
                 lines.append(stripped)
 
     return lines
-
 
 @router.post("/{session_id}/fork", summary="Fork a session at a specific turn")
 async def fork_session(
@@ -906,7 +1100,6 @@ async def fork_session(
         work_dir=str(work_dir),
         session_dir=str(new_session_dir),
     )
-
 
 @router.post("/{session_id}/generate-title", summary="Generate session title using AI")
 async def generate_session_title(
@@ -1039,7 +1232,6 @@ Title:"""
     invalidate_sessions_cache()
 
     return GenerateTitleResponse(title=title)
-
 
 @router.websocket("/{session_id}/stream")
 async def session_stream(
@@ -1202,174 +1394,3 @@ async def session_stream(
     finally:
         if attached and session_process:
             await session_process.remove_websocket(websocket)
-
-
-# Work dirs cache
-_work_dirs_cache: list[str] | None = None
-_work_dirs_cache_time: float = 0.0
-_WORK_DIRS_CACHE_TTL = 30.0  # seconds
-
-
-def invalidate_work_dirs_cache() -> None:
-    """Clear the work dirs cache."""
-    global _work_dirs_cache, _work_dirs_cache_time
-    _work_dirs_cache = None
-    _work_dirs_cache_time = 0.0
-
-
-def _get_work_dirs_sync() -> list[str]:
-    """Synchronous helper for get_work_dirs (runs in thread pool)."""
-    import time
-
-    global _work_dirs_cache, _work_dirs_cache_time
-
-    # Check cache
-    now = time.time()
-    if _work_dirs_cache is not None and (now - _work_dirs_cache_time) < _WORK_DIRS_CACHE_TTL:
-        return _work_dirs_cache
-
-    # Build fresh list
-    metadata = load_metadata()
-    work_dirs: list[str] = []
-    for wd in metadata.work_dirs:
-        # Filter out temporary directories
-        if "/tmp" in wd.path or "/var/folders" in wd.path or "/.cache/" in wd.path:
-            continue
-        # Verify directory exists
-        if Path(wd.path).exists():
-            work_dirs.append(wd.path)
-
-    # Update cache
-    result = work_dirs[:20]
-    _work_dirs_cache = result
-    _work_dirs_cache_time = now
-    return result
-
-
-@work_dirs_router.get("/", summary="List available work directories")
-async def get_work_dirs() -> list[str]:
-    """Get a list of available work directories from metadata."""
-    return await asyncio.to_thread(_get_work_dirs_sync)
-
-
-@work_dirs_router.get("/startup", summary="Get the startup directory")
-async def get_startup_dir(request: Request) -> str:
-    """Get the directory where kimi web was started."""
-    return request.app.state.startup_dir
-
-
-@router.get("/{session_id}/git-diff", summary="Get git diff stats")
-async def get_session_git_diff(session_id: UUID) -> GitDiffStats:
-    """get git diff stats for the session's work directory"""
-    session = load_session_by_id(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    work_dir = Path(str(session.kimi_cli_session.work_dir))
-
-    # Check if it is a git repository
-    if not (work_dir / ".git").exists():
-        return GitDiffStats(is_git_repo=False)
-
-    try:
-        files: list[GitFileDiff] = []
-        total_add, total_del = 0, 0
-
-        # Check if HEAD exists (repo has at least one commit)
-        check_proc = await asyncio.create_subprocess_exec(
-            "git",
-            "rev-parse",
-            "--verify",
-            "HEAD",
-            cwd=str(work_dir),
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-            env=get_clean_env(),
-        )
-        await check_proc.wait()
-        has_head = check_proc.returncode == 0
-
-        if has_head:
-            # Execute git diff --numstat HEAD (including staged and unstaged)
-            proc = await asyncio.create_subprocess_exec(
-                "git",
-                "diff",
-                "--numstat",
-                "HEAD",
-                cwd=str(work_dir),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=get_clean_env(),
-            )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5.0)
-
-            # Parse output
-            for line in stdout.decode().strip().split("\n"):
-                if not line:
-                    continue
-                parts = line.split("\t")
-                if len(parts) >= 3:
-                    add = int(parts[0]) if parts[0] != "-" else 0
-                    dele = int(parts[1]) if parts[1] != "-" else 0
-                    total_add += add
-                    total_del += dele
-                    # Determine file status
-                    file_status: str = "modified"
-                    if dele == 0 and add > 0:
-                        file_status = "added"
-                    elif add == 0 and dele > 0:
-                        file_status = "deleted"
-                    files.append(
-                        GitFileDiff(
-                            path=parts[2],
-                            additions=add,
-                            deletions=dele,
-                            status=file_status,  # type: ignore[arg-type]
-                        )
-                    )
-
-        # Also get untracked files (new files not yet added to git)
-        untracked_proc = await asyncio.create_subprocess_exec(
-            "git",
-            "ls-files",
-            "--others",
-            "--exclude-standard",
-            cwd=str(work_dir),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-            env=get_clean_env(),
-        )
-        untracked_stdout, _ = await asyncio.wait_for(untracked_proc.communicate(), timeout=5.0)
-
-        # Add untracked files to the result
-        for line in untracked_stdout.decode().strip().split("\n"):
-            if line:
-                files.append(
-                    GitFileDiff(
-                        path=line,
-                        additions=0,  # Cannot count lines for untracked files
-                        deletions=0,
-                        status="added",
-                    )
-                )
-
-        if not has_head:
-            return GitDiffStats(
-                is_git_repo=True,
-                has_changes=len(files) > 0,
-                total_additions=0,
-                total_deletions=0,
-                files=files,
-            )
-
-        return GitDiffStats(
-            is_git_repo=True,
-            has_changes=len(files) > 0,
-            total_additions=total_add,
-            total_deletions=total_del,
-            files=files,
-        )
-    except TimeoutError:
-        return GitDiffStats(is_git_repo=True, error="Git command timed out")
-    except Exception as e:
-        return GitDiffStats(is_git_repo=True, error=str(e))

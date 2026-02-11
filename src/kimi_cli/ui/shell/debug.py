@@ -1,15 +1,12 @@
 from __future__ import annotations
-
 import json
 from typing import TYPE_CHECKING
-
 from kosong.message import Message
 from rich.console import Group, RenderableType
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.syntax import Syntax
 from rich.text import Text
-
 from kimi_cli.soul.kimisoul import KimiSoul
 from kimi_cli.ui.shell.console import console
 from kimi_cli.ui.shell.slash import registry
@@ -25,6 +22,22 @@ from kimi_cli.wire.types import (
 
 if TYPE_CHECKING:
     from kimi_cli.ui.shell import Shell
+
+# Internal Function Index:
+#
+#   [func] _format_content_part
+#   [func] _format_tool_call
+#   [func] _format_message
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _format_content_part(part: ContentPart) -> Text | Panel | Group:
@@ -65,7 +78,6 @@ def _format_content_part(part: ContentPart) -> Text | Panel | Group:
         case _:
             return Text(f"[Unknown content type: {type(part).__name__}]", style="red")
 
-
 def _format_tool_call(tool_call: ToolCall) -> Panel:
     """Format a tool call."""
     args = tool_call.function.arguments or "{}"
@@ -88,7 +100,6 @@ def _format_tool_call(tool_call: ToolCall) -> Panel:
         border_style="yellow",
         padding=(0, 1),
     )
-
 
 def _format_message(msg: Message, index: int) -> Panel:
     """Format a single message."""
@@ -142,7 +153,6 @@ def _format_message(msg: Message, index: int) -> Panel:
         border_style=role_color,
         padding=(0, 1),
     )
-
 
 @registry.command
 def debug(app: Shell, args: str):

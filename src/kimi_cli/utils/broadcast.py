@@ -1,7 +1,5 @@
 import asyncio
-
 from kimi_cli.utils.aioqueue import Queue
-
 
 class BroadcastQueue[T]:
     """

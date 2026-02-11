@@ -1,8 +1,6 @@
 from __future__ import annotations
-
 import re
 from dataclasses import dataclass
-
 from . import (
     Flow,
     FlowEdge,
@@ -12,33 +10,82 @@ from . import (
     validate_flow,
 )
 
+# Internal Function Index:
+#
+#   [class] _NodeSpec
+#   [class] _NodeDef
+#   [func] _NODE_ID_RE
+#   [func] _HEADER_RE
+#   [func] _SHAPES
+#   [func] _PIPE_LABEL_RE
+#   [func] _EDGE_LABEL_RE
+#   [func] _ARROW_RE
+#   [func] _try_parse_edge_line
+#   [func] _parse_node_token
+#   [func] _parse_label
+#   [func] _skip_ws
+#   [func] _add_node
+#   [func] _line_error
+#   [func] _strip_comment
+#   [func] _is_style_line
+#   [func] _strip_style_tokens
+#   [func] _try_parse_node_line
+#   [func] _normalize_edge_line
+#   [func] _infer_decision_nodes
 
-@dataclass(frozen=True, slots=True)
-class _NodeSpec:
-    node_id: str
-    label: str | None
 
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_ARROW_RE = re.compile(r"[-.=]+>")
+
+_EDGE_LABEL_RE = re.compile(r"--\s*([^>-][^>]*)\s*-->")
+
+_HEADER_RE = re.compile(r"^(flowchart|graph)\b", re.IGNORECASE)
+
+_NODE_ID_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]*")
 
 @dataclass(slots=True)
 class _NodeDef:
+    """
+    _NodeDef class.
+    """
     node: FlowNode
     explicit: bool
 
+@dataclass(frozen=True, slots=True)
+class _NodeSpec:
+    """
+    _NodeSpec class.
+    """
+    node_id: str
+    label: str | None
 
-_NODE_ID_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]*")
-_HEADER_RE = re.compile(r"^(flowchart|graph)\b", re.IGNORECASE)
+_PIPE_LABEL_RE = re.compile(r"\|([^|]*)\|")
 
 _SHAPES = {
     "[": "]",
     "(": ")",
     "{": "}",
 }
-_PIPE_LABEL_RE = re.compile(r"\|([^|]*)\|")
-_EDGE_LABEL_RE = re.compile(r"--\s*([^>-][^>]*)\s*-->")
-_ARROW_RE = re.compile(r"[-.=]+>")
-
 
 def parse_mermaid_flowchart(text: str) -> Flow:
+    """
+    Parse Mermaid Flowchart.
+    
+    Args:
+    text: Description.
+    
+    Returns:
+        Description.
+    """
     nodes: dict[str, _NodeDef] = {}
     outgoing: dict[str, list[FlowEdge]] = {}
 
@@ -74,8 +121,17 @@ def parse_mermaid_flowchart(text: str) -> Flow:
     begin_id, end_id = validate_flow(flow_nodes, outgoing)
     return Flow(nodes=flow_nodes, outgoing=outgoing, begin_id=begin_id, end_id=end_id)
 
-
 def _try_parse_edge_line(line: str, line_no: int) -> tuple[_NodeSpec, str | None, _NodeSpec] | None:
+    """
+     Try Parse Edge Line.
+    
+    Args:
+    line: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         src_spec, idx = _parse_node_token(line, 0, line_no)
     except FlowParseError:
@@ -101,8 +157,18 @@ def _try_parse_edge_line(line: str, line_no: int) -> tuple[_NodeSpec, str | None
 
     return src_spec, label, dst_spec
 
-
 def _parse_node_token(line: str, idx: int, line_no: int) -> tuple[_NodeSpec, int]:
+    """
+     Parse Node Token.
+    
+    Args:
+    line: Description.
+    idx: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     match = _NODE_ID_RE.match(line, idx)
     if not match:
         raise FlowParseError(_line_error(line_no, "Expected node id"))
@@ -117,8 +183,19 @@ def _parse_node_token(line: str, idx: int, line_no: int) -> tuple[_NodeSpec, int
     label, idx = _parse_label(line, idx, close_char, line_no)
     return _NodeSpec(node_id=node_id, label=label), idx
 
-
 def _parse_label(line: str, idx: int, close_char: str, line_no: int) -> tuple[str, int]:
+    """
+     Parse Label.
+    
+    Args:
+    line: Description.
+    idx: Description.
+    close_char: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     if idx >= len(line):
         raise FlowParseError(_line_error(line_no, "Expected node label"))
     if close_char == ")" and line[idx] == "[":
@@ -156,14 +233,33 @@ def _parse_label(line: str, idx: int, close_char: str, line_no: int) -> tuple[st
         raise FlowParseError(_line_error(line_no, "Node label cannot be empty"))
     return label, end + 1
 
-
 def _skip_ws(line: str, idx: int) -> int:
+    """
+     Skip Ws.
+    
+    Args:
+    line: Description.
+    idx: Description.
+    
+    Returns:
+        Description.
+    """
     while idx < len(line) and line[idx].isspace():
         idx += 1
     return idx
 
-
 def _add_node(nodes: dict[str, _NodeDef], spec: _NodeSpec, line_no: int) -> FlowNode:
+    """
+     Add Node.
+    
+    Args:
+    nodes: Description.
+    spec: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     label = spec.label if spec.label is not None else spec.node_id
     label_norm = label.strip().lower()
     if not label:
@@ -195,18 +291,43 @@ def _add_node(nodes: dict[str, _NodeDef], spec: _NodeSpec, line_no: int) -> Flow
 
     raise FlowParseError(_line_error(line_no, f'Conflicting definition for node "{spec.node_id}"'))
 
-
 def _line_error(line_no: int, message: str) -> str:
+    """
+     Line Error.
+    
+    Args:
+    line_no: Description.
+    message: Description.
+    
+    Returns:
+        Description.
+    """
     return f"Line {line_no}: {message}"
 
-
 def _strip_comment(line: str) -> str:
+    """
+     Strip Comment.
+    
+    Args:
+    line: Description.
+    
+    Returns:
+        Description.
+    """
     if "%%" not in line:
         return line
     return line.split("%%", 1)[0]
 
-
 def _is_style_line(line: str) -> bool:
+    """
+     Is Style Line.
+    
+    Args:
+    line: Description.
+    
+    Returns:
+        Description.
+    """
     lowered = line.lower()
     if lowered in ("end",):
         return True
@@ -222,20 +343,45 @@ def _is_style_line(line: str) -> bool:
         )
     )
 
-
 def _strip_style_tokens(line: str) -> str:
+    """
+     Strip Style Tokens.
+    
+    Args:
+    line: Description.
+    
+    Returns:
+        Description.
+    """
     return re.sub(r":::[A-Za-z0-9_-]+", "", line)
 
-
 def _try_parse_node_line(line: str, line_no: int) -> _NodeSpec | None:
+    """
+     Try Parse Node Line.
+    
+    Args:
+    line: Description.
+    line_no: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         node_spec, _ = _parse_node_token(line, 0, line_no)
     except FlowParseError:
         return None
     return node_spec
 
-
 def _normalize_edge_line(line: str) -> tuple[str, str | None]:
+    """
+     Normalize Edge Line.
+    
+    Args:
+    line: Description.
+    
+    Returns:
+        Description.
+    """
     label = None
     normalized = line
     pipe_match = _PIPE_LABEL_RE.search(normalized)
@@ -249,11 +395,20 @@ def _normalize_edge_line(line: str) -> tuple[str, str | None]:
             normalized = normalized[: edge_match.start()] + "-->" + normalized[edge_match.end() :]
     return normalized, label
 
-
 def _infer_decision_nodes(
     nodes: dict[str, FlowNode],
     outgoing: dict[str, list[FlowEdge]],
 ) -> dict[str, FlowNode]:
+    """
+     Infer Decision Nodes.
+    
+    Args:
+    nodes: Description.
+    outgoing: Description.
+    
+    Returns:
+        Description.
+    """
     updated: dict[str, FlowNode] = {}
     for node_id, node in nodes.items():
         kind = node.kind

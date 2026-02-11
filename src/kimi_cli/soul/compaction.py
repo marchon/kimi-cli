@@ -1,21 +1,20 @@
 from __future__ import annotations
-
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, NamedTuple, Protocol, runtime_checkable
-
 import kosong
 from kosong.message import Message
 from kosong.tooling.empty import EmptyToolset
-
 import kimi_cli.prompts as prompts
 from kimi_cli.llm import LLM
 from kimi_cli.soul.message import system
 from kimi_cli.utils.logging import logger
 from kimi_cli.wire.types import ContentPart, TextPart, ThinkPart
 
-
 @runtime_checkable
 class Compaction(Protocol):
+    """
+    Compaction class.
+    """
     async def compact(self, messages: Sequence[Message], llm: LLM) -> Sequence[Message]:
         """
         Compact a sequence of messages into a new sequence of messages.
@@ -32,14 +31,10 @@ class Compaction(Protocol):
         """
         ...
 
-
-if TYPE_CHECKING:
-
-    def type_check(simple: SimpleCompaction):
-        _: Compaction = simple
-
-
 class SimpleCompaction:
+    """
+    SimpleCompaction class.
+    """
     def __init__(self, max_preserved_messages: int = 2) -> None:
         self.max_preserved_messages = max_preserved_messages
 
@@ -114,3 +109,8 @@ class SimpleCompaction:
             )
         compact_message.content.append(TextPart(text="\n" + prompts.COMPACT))
         return self.PrepareResult(compact_message=compact_message, to_preserve=to_preserve)
+
+if TYPE_CHECKING:
+
+    def type_check(simple: SimpleCompaction):
+        _: Compaction = simple

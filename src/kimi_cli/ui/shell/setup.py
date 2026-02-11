@@ -1,12 +1,9 @@
 from __future__ import annotations
-
 from typing import TYPE_CHECKING, NamedTuple
-
 from loguru import logger
 from prompt_toolkit import PromptSession
 from prompt_toolkit.shortcuts.choice_input import ChoiceInput
 from pydantic import SecretStr
-
 from kimi_cli.auth.platforms import (
     PLATFORMS,
     ModelInfo,
@@ -30,8 +27,91 @@ from kimi_cli.ui.shell.slash import registry
 if TYPE_CHECKING:
     from kimi_cli.ui.shell import Shell
 
+@registry.command
+def reload(app: Shell, args: str):
+    """Reload configuration"""
+    from kimi_cli.cli import Reload
+
+    raise Reload
+
+# Internal Function Index:
+#
+#   [class] _SetupResult
+#   [func] _setup_platform
+#   [func] _apply_setup_result
+#   [func] _prompt_choice
+#   [func] _prompt_text
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+async def _prompt_choice(*, header: str, choices: list[str]) -> str | None:
+    """
+     Prompt Choice.
+    
+    Args:
+    header: Description.
+    choices: Description.
+    
+    Returns:
+        Description.
+    """
+    if not choices:
+        return None
+
+    try:
+        return await ChoiceInput(
+            message=header,
+            options=[(choice, choice) for choice in choices],
+            default=choices[0],
+        ).prompt_async()
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+async def _prompt_text(prompt: str, *, is_password: bool = False) -> str | None:
+    """
+     Prompt Text.
+    
+    Args:
+    prompt: Description.
+    is_password: Description.
+    
+    Returns:
+        Description.
+    """
+    session = PromptSession[str]()
+    try:
+        return str(
+            await session.prompt_async(
+                f" {prompt}: ",
+                is_password=is_password,
+            )
+        ).strip()
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+class _SetupResult(NamedTuple):
+    """
+    _SetupResult class.
+    """
+    platform: Platform
+    api_key: SecretStr
+    selected_model: ModelInfo
+    models: list[ModelInfo]
+    thinking: bool
 
 async def select_platform() -> Platform | None:
+    """
+    Select Platform.
+    """
     platform_name = await _prompt_choice(
         header="Select a platform (↑↓ navigate, Enter select, Ctrl+C cancel):",
         choices=[platform.name for platform in PLATFORMS],
@@ -46,8 +126,16 @@ async def select_platform() -> Platform | None:
         return None
     return platform
 
-
 async def setup_platform(platform: Platform) -> bool:
+    """
+    Setup Platform.
+    
+    Args:
+    platform: Description.
+    
+    Returns:
+        Description.
+    """
     result = await _setup_platform(platform)
     if not result:
         # error message already printed
@@ -57,16 +145,16 @@ async def setup_platform(platform: Platform) -> bool:
     console.print("[green]✓[/green] Kimi Code CLI has been setup! Reloading...")
     return True
 
-
-class _SetupResult(NamedTuple):
-    platform: Platform
-    api_key: SecretStr
-    selected_model: ModelInfo
-    models: list[ModelInfo]
-    thinking: bool
-
-
 async def _setup_platform(platform: Platform) -> _SetupResult | None:
+    """
+     Setup Platform.
+    
+    Args:
+    platform: Description.
+    
+    Returns:
+        Description.
+    """
     # enter the API key
     api_key = await _prompt_text("Enter your API key", is_password=True)
     if not api_key:
@@ -121,8 +209,16 @@ async def _setup_platform(platform: Platform) -> _SetupResult | None:
         thinking=thinking,
     )
 
-
 def _apply_setup_result(result: _SetupResult) -> None:
+    """
+     Apply Setup Result.
+    
+    Args:
+    result: Description.
+    
+    Returns:
+        Description.
+    """
     config = load_config()
     provider_key = managed_provider_key(result.platform.id)
     model_key = managed_model_key(result.platform.id, result.selected_model.id)
@@ -158,38 +254,3 @@ def _apply_setup_result(result: _SetupResult) -> None:
         )
 
     save_config(config)
-
-
-async def _prompt_choice(*, header: str, choices: list[str]) -> str | None:
-    if not choices:
-        return None
-
-    try:
-        return await ChoiceInput(
-            message=header,
-            options=[(choice, choice) for choice in choices],
-            default=choices[0],
-        ).prompt_async()
-    except (EOFError, KeyboardInterrupt):
-        return None
-
-
-async def _prompt_text(prompt: str, *, is_password: bool = False) -> str | None:
-    session = PromptSession[str]()
-    try:
-        return str(
-            await session.prompt_async(
-                f" {prompt}: ",
-                is_password=is_password,
-            )
-        ).strip()
-    except (EOFError, KeyboardInterrupt):
-        return None
-
-
-@registry.command
-def reload(app: Shell, args: str):
-    """Reload configuration"""
-    from kimi_cli.cli import Reload
-
-    raise Reload

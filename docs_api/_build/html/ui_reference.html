@@ -1,0 +1,592 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UI Reference &mdash; Kimi Code CLI 1.12.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe8e256b"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CLI Reference" href="cli_reference.html" />
+    <link rel="prev" title="kimi_cli.skill" href="api/kimi_cli.skill.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Kimi Code CLI
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#command-line">Command Line</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#python-api">Python API</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#programmatic-usage">Programmatic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#running-without-ui">Running Without UI</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#configuration-file">Configuration File</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#environment-variables">Environment Variables</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#core-components">Core Components</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#kimicli">KimiCLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#kimisoul">KimiSoul</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#runtime">Runtime</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#wire-protocol">Wire Protocol</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#tool-system">Tool System</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#data-flow">Data Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#key-design-patterns">Key Design Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#dependency-injection">Dependency Injection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#async-await">Async/Await</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#type-safety">Type Safety</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.html">kimi_cli</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#submodules">Submodules</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-app">kimi_cli.app</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#key-classes">Key Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#key-functions">Key Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-config">kimi_cli.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#configuration-classes">Configuration Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#configuration-functions">Configuration Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-session">kimi_cli.session</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-llm">kimi_cli.llm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-agentspec">kimi_cli.agentspec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-metadata">kimi_cli.metadata</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-share">kimi_cli.share</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-constant">kimi_cli.constant</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-exception">kimi_cli.exception</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.cli.html">kimi_cli.cli</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.cli.html#main-cli">Main CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.cli.html#subcommands">Subcommands</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.soul.html">kimi_cli.soul</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#submodules">Submodules</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-kimisoul">kimi_cli.soul.kimisoul</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#key-classes">Key Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-agent">kimi_cli.soul.agent</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#id1">Key Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#key-functions">Key Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-toolset">kimi_cli.soul.toolset</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#id2">Key Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#id3">Key Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-context">kimi_cli.soul.context</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-approval">kimi_cli.soul.approval</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-compaction">kimi_cli.soul.compaction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-slash">kimi_cli.soul.slash</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-message">kimi_cli.soul.message</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-denwarenji">kimi_cli.soul.denwarenji</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.tools.html">kimi_cli.tools</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#tool-categories">Tool Categories</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#display-blocks">Display Blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#utilities">Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-shell">kimi_cli.tools.shell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-file">kimi_cli.tools.file</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-web">kimi_cli.tools.web</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-multiagent">kimi_cli.tools.multiagent</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-todo">kimi_cli.tools.todo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-think">kimi_cli.tools.think</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-dmail">kimi_cli.tools.dmail</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.wire.html">kimi_cli.wire</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.wire.html#core-wire-components">Core Wire Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.wire.html#message-types">Message Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.wire.html#events">Events</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.wire.html#requests">Requests</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.wire.html#type-helpers">Type Helpers</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.wire.html#supporting-modules">Supporting Modules</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.ui.html">kimi_cli.ui</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#ui-modes">UI Modes</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#kimi-cli-ui-shell">kimi_cli.ui.shell</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.ui.html#shell-components">Shell Components</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#kimi-cli-ui-print">kimi_cli.ui.print</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#kimi-cli-ui-acp">kimi_cli.ui.acp</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.utils.html">kimi_cli.utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.utils.html#utility-modules">Utility Modules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.utils.html#rich-utilities">Rich Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.web.html">kimi_cli.web</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.web.html#web-components">Web Components</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#main-application">Main Application</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#authentication">Authentication</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#models">Models</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#api-endpoints">API Endpoints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#runner">Runner</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#store">Store</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.acp.html">kimi_cli.acp</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.acp.html#acp-components">ACP Components</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.auth.html">kimi_cli.auth</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.auth.html#oauth">OAuth</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.auth.html#platforms">Platforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.skill.html">kimi_cli.skill</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.skill.html#flow-skills">Flow Skills</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">UI Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#shell-ui">Shell UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#keyboard-shortcuts">Keyboard Shortcuts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#slash-commands">Slash Commands</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#print-ui">Print UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#options">Options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#acp-server">ACP Server</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#features">Features</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#wire-mode">Wire Mode</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wire-messages">Wire Messages</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#web-ui">Web UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id4">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">Features</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#python-api">Python API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#creating-ui-instances">Creating UI Instances</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#custom-ui-development">Custom UI Development</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli_reference.html">CLI Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#main-command">Main Command</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#global-options">Global Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#meta-options">Meta Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#configuration-options">Configuration Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#run-mode-options">Run Mode Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#customization-options">Customization Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#loop-control-options">Loop Control Options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#subcommands">Subcommands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#login">login</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#logout">logout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#acp">acp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#term">term</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#info">info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#mcp">mcp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#web">web</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#examples">Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#advanced-usage">Advanced Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#scripting-examples">Scripting Examples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Kimi Code CLI</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">UI Reference</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/moonshot-ai/kimi-cli/blob/main/docs_api/ui_reference.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ui-reference">
+<h1>UI Reference<a class="headerlink" href="#ui-reference" title="Link to this heading"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>Kimi Code CLI provides multiple user interface modes:</p>
+<ol class="arabic simple">
+<li><p><strong>Shell UI</strong> - Interactive terminal UI (default)</p></li>
+<li><p><strong>Print UI</strong> - Non-interactive output mode</p></li>
+<li><p><strong>ACP Server</strong> - Agent Communication Protocol server</p></li>
+<li><p><strong>Wire Mode</strong> - Raw wire message interface</p></li>
+</ol>
+</section>
+<section id="shell-ui">
+<h2>Shell UI<a class="headerlink" href="#shell-ui" title="Link to this heading"></a></h2>
+<p>The Shell UI provides an interactive terminal experience with:</p>
+<ul class="simple">
+<li><p>Rich text rendering with syntax highlighting</p></li>
+<li><p>Command history and autocompletion</p></li>
+<li><p>Slash command support</p></li>
+<li><p>Keyboard shortcuts</p></li>
+<li><p>Real-time streaming output</p></li>
+</ul>
+<section id="usage">
+<h3>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Start shell UI (default)</span>
+kimi
+
+<span class="c1"># With initial prompt</span>
+kimi<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Your prompt&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="keyboard-shortcuts">
+<h3>Keyboard Shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Shortcut</p></th>
+<th class="head"><p>Action</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Ctrl+C</span></code></p></td>
+<td><p>Cancel current operation</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Ctrl+D</span></code></p></td>
+<td><p>Exit (on empty prompt)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Tab</span></code></p></td>
+<td><p>Autocomplete</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Up/Down</span></code></p></td>
+<td><p>Navigate command history</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Ctrl+L</span></code></p></td>
+<td><p>Clear screen</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="slash-commands">
+<h3>Slash Commands<a class="headerlink" href="#slash-commands" title="Link to this heading"></a></h3>
+<p>Built-in slash commands:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Command</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/help</span></code></p></td>
+<td><p>Show help message</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/login</span></code></p></td>
+<td><p>Login to Kimi</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/logout</span></code></p></td>
+<td><p>Logout from Kimi</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/exit</span></code></p></td>
+<td><p>Exit the shell</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/clear</span></code></p></td>
+<td><p>Clear the conversation</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/compact</span></code></p></td>
+<td><p>Compact the context</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/model</span></code></p></td>
+<td><p>Show/change model</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/session</span></code></p></td>
+<td><p>Session management</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/web</span></code></p></td>
+<td><p>Switch to web UI</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="print-ui">
+<h2>Print UI<a class="headerlink" href="#print-ui" title="Link to this heading"></a></h2>
+<p>The Print UI is designed for non-interactive usage and scripting:</p>
+<section id="id1">
+<h3>Usage<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Basic print mode</span>
+kimi<span class="w"> </span>--print<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Your prompt&quot;</span>
+
+<span class="c1"># Quiet mode (final message only)</span>
+kimi<span class="w"> </span>--quiet<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Your prompt&quot;</span>
+
+<span class="c1"># With input/output formats</span>
+kimi<span class="w"> </span>--print<span class="w"> </span>--input-format<span class="w"> </span>text<span class="w"> </span>--output-format<span class="w"> </span>stream-json<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Your prompt&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="options">
+<h3>Options<a class="headerlink" href="#options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--print</span></code></p></td>
+<td><p>Enable print mode</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--quiet</span></code></p></td>
+<td><p>Alias for <code class="docutils literal notranslate"><span class="pre">--print</span> <span class="pre">--output-format</span> <span class="pre">text</span> <span class="pre">--final-message-only</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--input-format</span></code></p></td>
+<td><p>Input format: <code class="docutils literal notranslate"><span class="pre">text</span></code> or <code class="docutils literal notranslate"><span class="pre">stream-json</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--output-format</span></code></p></td>
+<td><p>Output format: <code class="docutils literal notranslate"><span class="pre">text</span></code> or <code class="docutils literal notranslate"><span class="pre">stream-json</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--final-message-only</span></code></p></td>
+<td><p>Only output the final assistant message</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="acp-server">
+<h2>ACP Server<a class="headerlink" href="#acp-server" title="Link to this heading"></a></h2>
+<p>The Agent Communication Protocol (ACP) server allows IDE integrations:</p>
+<section id="id2">
+<h3>Usage<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Start ACP server</span>
+kimi<span class="w"> </span>acp
+
+<span class="c1"># Or with legacy flag</span>
+kimi<span class="w"> </span>--acp
+</pre></div>
+</div>
+</section>
+<section id="features">
+<h3>Features<a class="headerlink" href="#features" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>JSON-RPC communication</p></li>
+<li><p>Tool exposure for external clients</p></li>
+<li><p>Session management</p></li>
+<li><p>Approval handling</p></li>
+</ul>
+</section>
+</section>
+<section id="wire-mode">
+<h2>Wire Mode<a class="headerlink" href="#wire-mode" title="Link to this heading"></a></h2>
+<p>Wire mode provides direct access to wire messages:</p>
+<section id="id3">
+<h3>Usage<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Start wire server</span>
+kimi<span class="w"> </span>--wire
+</pre></div>
+</div>
+</section>
+<section id="wire-messages">
+<h3>Wire Messages<a class="headerlink" href="#wire-messages" title="Link to this heading"></a></h3>
+<p>See <span class="xref std std-doc">api/kimi_cli.wire.types</span> for message types.</p>
+</section>
+</section>
+<section id="web-ui">
+<h2>Web UI<a class="headerlink" href="#web-ui" title="Link to this heading"></a></h2>
+<p>A web-based graphical interface:</p>
+<section id="id4">
+<h3>Usage<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Start web UI</span>
+kimi<span class="w"> </span>web
+
+<span class="c1"># Or switch from shell</span>
+/web
+</pre></div>
+</div>
+</section>
+<section id="id5">
+<h3>Features<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Browser-based interface</p></li>
+<li><p>Session synchronization</p></li>
+<li><p>Rich content rendering</p></li>
+<li><p>File upload support</p></li>
+</ul>
+</section>
+</section>
+<section id="python-api">
+<h2>Python API<a class="headerlink" href="#python-api" title="Link to this heading"></a></h2>
+<section id="creating-ui-instances">
+<h3>Creating UI Instances<a class="headerlink" href="#creating-ui-instances" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">kimi_cli.app</span><span class="w"> </span><span class="kn">import</span> <span class="n">KimiCLI</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kimi_cli.session</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_uis</span><span class="p">():</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Session</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="n">cli</span> <span class="o">=</span> <span class="k">await</span> <span class="n">KimiCLI</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
+
+    <span class="c1"># Shell UI</span>
+    <span class="k">await</span> <span class="n">cli</span><span class="o">.</span><span class="n">run_shell</span><span class="p">()</span>
+
+    <span class="c1"># Print UI</span>
+    <span class="k">await</span> <span class="n">cli</span><span class="o">.</span><span class="n">run_print</span><span class="p">(</span>
+        <span class="n">input_format</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+        <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;text&quot;</span><span class="p">,</span>
+        <span class="n">command</span><span class="o">=</span><span class="s2">&quot;Your prompt&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ACP server</span>
+    <span class="k">await</span> <span class="n">cli</span><span class="o">.</span><span class="n">run_acp</span><span class="p">()</span>
+
+    <span class="c1"># Wire mode</span>
+    <span class="k">await</span> <span class="n">cli</span><span class="o">.</span><span class="n">run_wire_stdio</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="custom-ui-development">
+<h3>Custom UI Development<a class="headerlink" href="#custom-ui-development" title="Link to this heading"></a></h3>
+<p>To create a custom UI using the Wire protocol:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">kimi_cli.app</span><span class="w"> </span><span class="kn">import</span> <span class="n">KimiCLI</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kimi_cli.session</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kimi_cli.wire</span><span class="w"> </span><span class="kn">import</span> <span class="n">Wire</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">custom_ui</span><span class="p">():</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Session</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="n">cli</span> <span class="o">=</span> <span class="k">await</span> <span class="n">KimiCLI</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
+
+    <span class="n">cancel_event</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">cli</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;Prompt&quot;</span><span class="p">,</span> <span class="n">cancel_event</span><span class="p">):</span>
+        <span class="c1"># Handle different message types</span>
+        <span class="k">match</span> <span class="n">message</span><span class="p">:</span>
+            <span class="k">case</span> <span class="n">TextPart</span><span class="p">():</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="k">case</span> <span class="n">ToolResult</span><span class="p">():</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tool result: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">case</span> <span class="n">ApprovalRequest</span><span class="p">():</span>
+                <span class="c1"># Handle approval</span>
+                <span class="n">message</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="s2">&quot;approve&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api/kimi_cli.skill.html" class="btn btn-neutral float-left" title="kimi_cli.skill" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cli_reference.html" class="btn btn-neutral float-right" title="CLI Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Moonshot AI.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

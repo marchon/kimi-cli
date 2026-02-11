@@ -1,53 +1,27 @@
 from __future__ import annotations
-
 import contextlib
 import os
 import re
 import sys
 import time
 
-
-def ensure_new_line() -> None:
-    """Ensure the next prompt starts at column 0 regardless of prior command output."""
-
-    if not sys.stdout.isatty() or not sys.stdin.isatty():
-        return
-
-    needs_break = True
-    if sys.platform == "win32":
-        column = _cursor_column_windows()
-        needs_break = column not in (None, 0)
-    else:
-        column = _cursor_column_unix()
-        needs_break = column not in (None, 1)
-
-    if needs_break:
-        _write_newline()
+# Internal Function Index:
+#
+#   [func] _cursor_position_unix
+#   [func] _cursor_column_unix
+#   [func] _cursor_position_windows
+#   [func] _cursor_column_windows
+#   [func] _write_newline
 
 
-def ensure_tty_sane() -> None:
-    """Restore basic tty settings so Ctrl-C works after raw-mode operations."""
-    if sys.platform == "win32" or not sys.stdin.isatty():
-        return
 
-    try:
-        import termios
-    except Exception:
-        return
 
-    try:
-        fd = sys.stdin.fileno()
-        attrs = termios.tcgetattr(fd)
-    except Exception:
-        return
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
 
-    desired = termios.ISIG | termios.IEXTEN | termios.ICANON | termios.ECHO
-    if (attrs[3] & desired) == desired:
-        return
-
-    attrs[3] |= desired
-    with contextlib.suppress(OSError):
-        termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _cursor_position_unix() -> tuple[int, int] | None:
@@ -91,11 +65,29 @@ def _cursor_position_unix() -> tuple[int, int] | None:
 
     return None
 
+def ensure_tty_sane() -> None:
+    """Restore basic tty settings so Ctrl-C works after raw-mode operations."""
+    if sys.platform == "win32" or not sys.stdin.isatty():
+        return
 
-def _cursor_column_unix() -> int | None:
-    pos = _cursor_position_unix()
-    return pos[1] if pos else None
+    try:
+        import termios
+    except Exception:
+        return
 
+    try:
+        fd = sys.stdin.fileno()
+        attrs = termios.tcgetattr(fd)
+    except Exception:
+        return
+
+    desired = termios.ISIG | termios.IEXTEN | termios.ICANON | termios.ECHO
+    if (attrs[3] & desired) == desired:
+        return
+
+    attrs[3] |= desired
+    with contextlib.suppress(OSError):
+        termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
 
 def _cursor_position_windows() -> tuple[int, int] | None:
     """Get cursor position (row, column) on Windows. Both are 1-indexed."""
@@ -138,17 +130,6 @@ def _cursor_position_windows() -> tuple[int, int] | None:
     # Windows returns 0-indexed, convert to 1-indexed for consistency
     return int(csbi.dwCursorPosition.Y) + 1, int(csbi.dwCursorPosition.X) + 1
 
-
-def _cursor_column_windows() -> int | None:
-    pos = _cursor_position_windows()
-    return pos[1] if pos else None
-
-
-def _write_newline() -> None:
-    sys.stdout.write("\n")
-    sys.stdout.flush()
-
-
 def get_cursor_row() -> int | None:
     """Get the current cursor row (1-indexed)."""
     if not sys.stdout.isatty() or not sys.stdin.isatty():
@@ -161,6 +142,43 @@ def get_cursor_row() -> int | None:
 
     return pos[0] if pos else None
 
+def _cursor_column_unix() -> int | None:
+    """
+     Cursor Column Unix.
+    """
+    pos = _cursor_position_unix()
+    return pos[1] if pos else None
+
+def _cursor_column_windows() -> int | None:
+    """
+     Cursor Column Windows.
+    """
+    pos = _cursor_position_windows()
+    return pos[1] if pos else None
+
+def _write_newline() -> None:
+    """
+     Write Newline.
+    """
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+def ensure_new_line() -> None:
+    """Ensure the next prompt starts at column 0 regardless of prior command output."""
+
+    if not sys.stdout.isatty() or not sys.stdin.isatty():
+        return
+
+    needs_break = True
+    if sys.platform == "win32":
+        column = _cursor_column_windows()
+        needs_break = column not in (None, 0)
+    else:
+        column = _cursor_column_unix()
+        needs_break = column not in (None, 1)
+
+    if needs_break:
+        _write_newline()
 
 if __name__ == "__main__":
     print("test", end="", flush=True)

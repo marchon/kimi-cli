@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from typing import Any, Literal
-
 from kosong.utils.typing import JsonType
 from pydantic import (
     BaseModel,
@@ -11,7 +9,6 @@ from pydantic import (
     field_validator,
     model_serializer,
 )
-
 from kimi_cli.wire.serde import serialize_wire_message
 from kimi_cli.wire.types import (
     ContentPart,
@@ -21,18 +18,130 @@ from kimi_cli.wire.types import (
     is_request,
 )
 
+class ClientInfo(BaseModel):
+    """
+    ClientInfo class.
+    """
+    name: str
+    version: str | None = None
 
-class _MessageBase(BaseModel):
-    jsonrpc: Literal["2.0"] = "2.0"
+class ErrorCodes:
+    """
+    ErrorCodes class.
+    """
+    # Predefined JSON-RPC 2.0 error codes
+    PARSE_ERROR = -32700
+    """Invalid JSON was received by the server."""
+    INVALID_REQUEST = -32600
+    """The JSON sent is not a valid Request object."""
+    METHOD_NOT_FOUND = -32601
+    """The method does not exist / is not available."""
+    INVALID_PARAMS = -32602
+    """Invalid method parameter(s)."""
+    INTERNAL_ERROR = -32603
+    """Internal JSON-RPC error."""
 
-    model_config = ConfigDict(extra="ignore")
+    INVALID_STATE = -32000
+    """The server is in an invalid state to process the request."""
+    LLM_NOT_SET = -32001
+    """The LLM is not set."""
+    LLM_NOT_SUPPORTED = -32002
+    """The specified LLM is not supported."""
+    CHAT_PROVIDER_ERROR = -32003
+    """There was an error from the chat provider."""
 
+class ExternalTool(BaseModel):
+    """
+    ExternalTool class.
+    """
+    name: str
+    description: str
+    parameters: dict[str, JsonType]
+
+JSONRPC_IN_METHODS = {"initialize", "prompt", "replay", "cancel"}
+
+JSONRPC_OUT_METHODS = {"event", "request"}
 
 class JSONRPCErrorObject(BaseModel):
+    """
+    JSONRPCErrorObject class.
+    """
     code: int
     message: str
     data: JsonType | None = None
 
+class Statuses:
+    """
+    Statuses class.
+    """
+    FINISHED = "finished"
+    """The agent run has finished successfully."""
+    CANCELLED = "cancelled"
+    """The agent run was cancelled by the user."""
+    MAX_STEPS_REACHED = "max_steps_reached"
+    """The agent run reached the maximum number of steps."""
+
+# Internal Function Index:
+#
+#   [class] _MessageBase
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+class _MessageBase(BaseModel):
+    """
+    _MessageBase class.
+    """
+    jsonrpc: Literal["2.0"] = "2.0"
+
+    model_config = ConfigDict(extra="ignore")
+
+class JSONRPCCancelMessage(_MessageBase):
+    """
+    JSONRPCCancelMessage class.
+    """
+    method: Literal["cancel"] = "cancel"
+    id: str
+    params: JsonType | None = None
+
+    @model_serializer()
+    def _serialize(self) -> dict[str, Any]:
+        raise NotImplementedError("Cancel message serialization is not implemented.")
+
+class JSONRPCErrorResponse(_MessageBase):
+    """
+    JSONRPCErrorResponse class.
+    """
+    id: str
+    error: JSONRPCErrorObject
+
+class JSONRPCErrorResponseNullableID(_MessageBase):
+    """
+    JSONRPCErrorResponseNullableID class.
+    """
+    id: str | None
+    error: JSONRPCErrorObject
+
+class JSONRPCInitializeMessage(_MessageBase):
+    """
+    JSONRPCInitializeMessage class.
+    """
+    class Params(BaseModel):
+        protocol_version: str
+        client: ClientInfo | None = None
+        external_tools: list[ExternalTool] | None = None
+
+    method: Literal["initialize"] = "initialize"
+    id: str
+    params: Params
 
 class JSONRPCMessage(_MessageBase):
     """The generic JSON-RPC message format used for validation."""
@@ -55,45 +164,10 @@ class JSONRPCMessage(_MessageBase):
     def is_response(self) -> bool:
         return self.method is None and self.id is not None
 
-
-class JSONRPCSuccessResponse(_MessageBase):
-    id: str
-    result: JsonType
-
-
-class JSONRPCErrorResponse(_MessageBase):
-    id: str
-    error: JSONRPCErrorObject
-
-
-class JSONRPCErrorResponseNullableID(_MessageBase):
-    id: str | None
-    error: JSONRPCErrorObject
-
-
-class ClientInfo(BaseModel):
-    name: str
-    version: str | None = None
-
-
-class ExternalTool(BaseModel):
-    name: str
-    description: str
-    parameters: dict[str, JsonType]
-
-
-class JSONRPCInitializeMessage(_MessageBase):
-    class Params(BaseModel):
-        protocol_version: str
-        client: ClientInfo | None = None
-        external_tools: list[ExternalTool] | None = None
-
-    method: Literal["initialize"] = "initialize"
-    id: str
-    params: Params
-
-
 class JSONRPCPromptMessage(_MessageBase):
+    """
+    JSONRPCPromptMessage class.
+    """
     class Params(BaseModel):
         user_input: str | list[ContentPart]
 
@@ -105,40 +179,18 @@ class JSONRPCPromptMessage(_MessageBase):
     def _serialize(self) -> dict[str, Any]:
         raise NotImplementedError("Prompt message serialization is not implemented.")
 
-
 class JSONRPCReplayMessage(_MessageBase):
+    """
+    JSONRPCReplayMessage class.
+    """
     method: Literal["replay"] = "replay"
     id: str
     params: JsonType | None = None
 
-
-class JSONRPCCancelMessage(_MessageBase):
-    method: Literal["cancel"] = "cancel"
-    id: str
-    params: JsonType | None = None
-
-    @model_serializer()
-    def _serialize(self) -> dict[str, Any]:
-        raise NotImplementedError("Cancel message serialization is not implemented.")
-
-
-class JSONRPCEventMessage(_MessageBase):
-    method: Literal["event"] = "event"
-    params: Event
-
-    @field_serializer("params")
-    def _serialize_params(self, params: Event) -> dict[str, JsonType]:
-        return serialize_wire_message(params)
-
-    @field_validator("params", mode="before")
-    @classmethod
-    def _validate_params(cls, value: Any) -> Event:
-        if is_event(value):
-            return value
-        raise NotImplementedError("Event message deserialization is not implemented.")
-
-
 class JSONRPCRequestMessage(_MessageBase):
+    """
+    JSONRPCRequestMessage class.
+    """
     method: Literal["request"] = "request"
     id: str
     params: Request
@@ -154,6 +206,30 @@ class JSONRPCRequestMessage(_MessageBase):
             return value
         raise NotImplementedError("Request message deserialization is not implemented.")
 
+class JSONRPCEventMessage(_MessageBase):
+    """
+    JSONRPCEventMessage class.
+    """
+    method: Literal["event"] = "event"
+    params: Event
+
+    @field_serializer("params")
+    def _serialize_params(self, params: Event) -> dict[str, JsonType]:
+        return serialize_wire_message(params)
+
+    @field_validator("params", mode="before")
+    @classmethod
+    def _validate_params(cls, value: Any) -> Event:
+        if is_event(value):
+            return value
+        raise NotImplementedError("Event message deserialization is not implemented.")
+
+class JSONRPCSuccessResponse(_MessageBase):
+    """
+    JSONRPCSuccessResponse class.
+    """
+    id: str
+    result: JsonType
 
 type JSONRPCInMessage = (
     JSONRPCSuccessResponse
@@ -163,8 +239,8 @@ type JSONRPCInMessage = (
     | JSONRPCReplayMessage
     | JSONRPCCancelMessage
 )
+
 JSONRPCInMessageAdapter = TypeAdapter[JSONRPCInMessage](JSONRPCInMessage)
-JSONRPC_IN_METHODS = {"initialize", "prompt", "replay", "cancel"}
 
 type JSONRPCOutMessage = (
     JSONRPCSuccessResponse
@@ -173,36 +249,3 @@ type JSONRPCOutMessage = (
     | JSONRPCEventMessage
     | JSONRPCRequestMessage
 )
-JSONRPC_OUT_METHODS = {"event", "request"}
-
-
-class ErrorCodes:
-    # Predefined JSON-RPC 2.0 error codes
-    PARSE_ERROR = -32700
-    """Invalid JSON was received by the server."""
-    INVALID_REQUEST = -32600
-    """The JSON sent is not a valid Request object."""
-    METHOD_NOT_FOUND = -32601
-    """The method does not exist / is not available."""
-    INVALID_PARAMS = -32602
-    """Invalid method parameter(s)."""
-    INTERNAL_ERROR = -32603
-    """Internal JSON-RPC error."""
-
-    INVALID_STATE = -32000
-    """The server is in an invalid state to process the request."""
-    LLM_NOT_SET = -32001
-    """The LLM is not set."""
-    LLM_NOT_SUPPORTED = -32002
-    """The specified LLM is not supported."""
-    CHAT_PROVIDER_ERROR = -32003
-    """There was an error from the chat provider."""
-
-
-class Statuses:
-    FINISHED = "finished"
-    """The agent run has finished successfully."""
-    CANCELLED = "cancelled"
-    """The agent run was cancelled by the user."""
-    MAX_STEPS_REACHED = "max_steps_reached"
-    """The agent run reached the maximum number of steps."""

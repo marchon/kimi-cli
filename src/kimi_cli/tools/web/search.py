@@ -1,9 +1,7 @@
 from pathlib import Path
 from typing import override
-
 from kosong.tooling import CallableTool2, ToolReturnValue
 from pydantic import BaseModel, Field, ValidationError
-
 from kimi_cli.config import Config
 from kimi_cli.constant import USER_AGENT
 from kimi_cli.soul.agent import Runtime
@@ -12,8 +10,10 @@ from kimi_cli.tools import SkipThisTool
 from kimi_cli.tools.utils import ToolResultBuilder, load_desc
 from kimi_cli.utils.aiohttp import new_client_session
 
-
 class Params(BaseModel):
+    """
+    Params class.
+    """
     query: str = Field(description="The query text to search for.")
     limit: int = Field(
         description=(
@@ -35,8 +35,29 @@ class Params(BaseModel):
         default=False,
     )
 
+class Response(BaseModel):
+    """
+    Response class.
+    """
+    search_results: list[SearchResult]
+
+class SearchResult(BaseModel):
+    """
+    SearchResult class.
+    """
+    site_name: str
+    title: str
+    url: str
+    snippet: str
+    content: str = ""
+    date: str = ""
+    icon: str = ""
+    mime: str = ""
 
 class SearchWeb(CallableTool2[Params]):
+    """
+    SearchWeb class.
+    """
     name: str = "SearchWeb"
     description: str = load_desc(Path(__file__).parent / "search.md", {})
     params: type[Params] = Params
@@ -115,18 +136,3 @@ class SearchWeb(CallableTool2[Params]):
                 builder.write(f"{result.content}\n\n")
 
         return builder.ok()
-
-
-class SearchResult(BaseModel):
-    site_name: str
-    title: str
-    url: str
-    snippet: str
-    content: str = ""
-    date: str = ""
-    icon: str = ""
-    mime: str = ""
-
-
-class Response(BaseModel):
-    search_results: list[SearchResult]

@@ -1,7 +1,21 @@
 from __future__ import annotations
-
 from rich.console import Console
 from rich.theme import Theme
+
+# Internal Function Index:
+#
+#   [func] _NEUTRAL_MARKDOWN_THEME
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 _NEUTRAL_MARKDOWN_THEME = Theme(
     {

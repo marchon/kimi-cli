@@ -1,11 +1,43 @@
 from __future__ import annotations
-
 import mimetypes
 from dataclasses import dataclass
 from pathlib import PurePath
 from typing import Literal
 
+@dataclass(frozen=True)
+class FileType:
+    """
+    FileType class.
+    """
+    kind: Literal["text", "image", "video", "unknown"]
+    mime_type: str
+
 MEDIA_SNIFF_BYTES = 512
+
+# Internal Function Index:
+#
+#   [func] _EXTRA_MIME_TYPES
+#   [func] _IMAGE_MIME_BY_SUFFIX
+#   [func] _VIDEO_MIME_BY_SUFFIX
+#   [func] _TEXT_MIME_BY_SUFFIX
+#   [func] _ASF_HEADER
+#   [func] _FTYP_IMAGE_BRANDS
+#   [func] _FTYP_VIDEO_BRANDS
+#   [func] _NON_TEXT_SUFFIXES
+#   [func] _sniff_ftyp_brand
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_ASF_HEADER = b"\x30\x26\xb2\x75\x8e\x66\xcf\x11\xa6\xd9\x00\xaa\x00\x62\xce\x6c"
 
 _EXTRA_MIME_TYPES = {
     ".avif": "image/avif",
@@ -22,41 +54,6 @@ _EXTRA_MIME_TYPES = {
     ".cts": "text/typescript",
 }
 
-for suffix, mime_type in _EXTRA_MIME_TYPES.items():
-    mimetypes.add_type(mime_type, suffix)
-
-_IMAGE_MIME_BY_SUFFIX = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".bmp": "image/bmp",
-    ".tif": "image/tiff",
-    ".tiff": "image/tiff",
-    ".webp": "image/webp",
-    ".ico": "image/x-icon",
-    ".heic": "image/heic",
-    ".heif": "image/heif",
-    ".avif": "image/avif",
-    ".svgz": "image/svg+xml",
-}
-_VIDEO_MIME_BY_SUFFIX = {
-    ".mp4": "video/mp4",
-    ".mkv": "video/x-matroska",
-    ".avi": "video/x-msvideo",
-    ".mov": "video/quicktime",
-    ".wmv": "video/x-ms-wmv",
-    ".webm": "video/webm",
-    ".m4v": "video/x-m4v",
-    ".flv": "video/x-flv",
-    ".3gp": "video/3gpp",
-    ".3g2": "video/3gpp2",
-}
-_TEXT_MIME_BY_SUFFIX = {
-    ".svg": "image/svg+xml",
-}
-
-_ASF_HEADER = b"\x30\x26\xb2\x75\x8e\x66\xcf\x11\xa6\xd9\x00\xaa\x00\x62\xce\x6c"
 _FTYP_IMAGE_BRANDS = {
     "avif": "image/avif",
     "avis": "image/avif",
@@ -67,6 +64,7 @@ _FTYP_IMAGE_BRANDS = {
     "mif1": "image/heif",
     "msf1": "image/heif",
 }
+
 _FTYP_VIDEO_BRANDS = {
     "isom": "video/mp4",
     "iso2": "video/mp4",
@@ -82,6 +80,22 @@ _FTYP_VIDEO_BRANDS = {
     "3gp6": "video/3gpp",
     "3gp7": "video/3gpp",
     "3g2": "video/3gpp2",
+}
+
+_IMAGE_MIME_BY_SUFFIX = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+    ".webp": "image/webp",
+    ".ico": "image/x-icon",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+    ".avif": "image/avif",
+    ".svgz": "image/svg+xml",
 }
 
 _NON_TEXT_SUFFIXES = {
@@ -168,21 +182,48 @@ _NON_TEXT_SUFFIXES = {
     ".db3",
 }
 
+_TEXT_MIME_BY_SUFFIX = {
+    ".svg": "image/svg+xml",
+}
 
-@dataclass(frozen=True)
-class FileType:
-    kind: Literal["text", "image", "video", "unknown"]
-    mime_type: str
-
+_VIDEO_MIME_BY_SUFFIX = {
+    ".mp4": "video/mp4",
+    ".mkv": "video/x-matroska",
+    ".avi": "video/x-msvideo",
+    ".mov": "video/quicktime",
+    ".wmv": "video/x-ms-wmv",
+    ".webm": "video/webm",
+    ".m4v": "video/x-m4v",
+    ".flv": "video/x-flv",
+    ".3gp": "video/3gpp",
+    ".3g2": "video/3gpp2",
+}
 
 def _sniff_ftyp_brand(header: bytes) -> str | None:
+    """
+     Sniff Ftyp Brand.
+    
+    Args:
+    header: Description.
+    
+    Returns:
+        Description.
+    """
     if len(header) < 12 or header[4:8] != b"ftyp":
         return None
     brand = header[8:12].decode("ascii", errors="ignore").lower()
     return brand.strip()
 
-
 def sniff_media_from_magic(data: bytes) -> FileType | None:
+    """
+    Sniff Media From Magic.
+    
+    Args:
+    data: Description.
+    
+    Returns:
+        Description.
+    """
     header = data[:MEDIA_SNIFF_BYTES]
     if header.startswith(b"\x89PNG\r\n\x1a\n"):
         return FileType(kind="image", mime_type="image/png")
@@ -219,8 +260,17 @@ def sniff_media_from_magic(data: bytes) -> FileType | None:
             return FileType(kind="video", mime_type=_FTYP_VIDEO_BRANDS[brand])
     return None
 
-
 def detect_file_type(path: str | PurePath, header: bytes | None = None) -> FileType:
+    """
+    Detect File Type.
+    
+    Args:
+    path: Description.
+    header: Description.
+    
+    Returns:
+        Description.
+    """
     suffix = PurePath(str(path)).suffix.lower()
     media_hint: FileType | None = None
     if suffix in _TEXT_MIME_BY_SUFFIX:

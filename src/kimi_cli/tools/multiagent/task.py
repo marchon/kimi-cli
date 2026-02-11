@@ -1,10 +1,8 @@
 import asyncio
 from pathlib import Path
 from typing import override
-
 from kosong.tooling import CallableTool2, ToolError, ToolOk, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul import MaxStepsReached, get_wire_or_none, run_soul
 from kimi_cli.soul.agent import Agent, Runtime
 from kimi_cli.soul.context import Context
@@ -21,10 +19,6 @@ from kimi_cli.wire.types import (
     WireMessage,
 )
 
-# Maximum continuation attempts for task summary
-MAX_CONTINUE_ATTEMPTS = 1
-
-
 CONTINUE_PROMPT = """
 Your previous response was too brief. Please provide a more comprehensive summary that includes:
 
@@ -34,8 +28,12 @@ Your previous response was too brief. Please provide a more comprehensive summar
 4. All important information that should be aware of by the caller
 """.strip()
 
+MAX_CONTINUE_ATTEMPTS = 1
 
 class Params(BaseModel):
+    """
+    Params class.
+    """
     description: str = Field(description="A short (3-5 word) description of the task")
     subagent_name: str = Field(
         description="The name of the specialized subagent to use for this task"
@@ -48,8 +46,10 @@ class Params(BaseModel):
         )
     )
 
-
 class Task(CallableTool2[Params]):
+    """
+    Task class.
+    """
     name: str = "Task"
     params: type[Params] = Params
 

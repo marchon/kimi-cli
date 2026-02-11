@@ -1,16 +1,13 @@
 from __future__ import annotations
-
 import asyncio
 import contextlib
 import json
 from typing import Any, cast
-
 import acp  # type: ignore[reportMissingTypeStubs]
 import pydantic
 from kosong.chat_provider import ChatProviderError
 from kosong.tooling import ToolError, ToolResult
 from kosong.utils.typing import JsonType
-
 from kimi_cli.constant import USER_AGENT
 from kimi_cli.soul import LLMNotSet, LLMNotSupported, MaxStepsReached, RunCancelled, Soul, run_soul
 from kimi_cli.soul.kimisoul import KimiSoul
@@ -27,7 +24,6 @@ from kimi_cli.wire.types import (
     is_event,
     is_request,
 )
-
 from .jsonrpc import (
     ClientInfo,
     ErrorCodes,
@@ -48,16 +44,12 @@ from .jsonrpc import (
     Statuses,
 )
 
-# Maximum buffer size for the asyncio StreamReader used for stdio.
-# Passed as the `limit` argument to `acp.stdio_streams`, this caps how much
-# data can be buffered when reading from stdin (e.g., large tool or model
-# outputs sent over JSON-RPC). A 100MB limit is large enough for typical
-# interactive use while still protecting the process from unbounded memory
-# growth or buffer-overrun errors when peers send unexpectedly large payloads.
 STDIO_BUFFER_LIMIT = 100 * 1024 * 1024
 
-
 class WireServer:
+    """
+    WireServer class.
+    """
     def __init__(self, soul: Soul):
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
@@ -654,4 +646,3 @@ class WireServer:
         msg_id = request.id
         self._pending_requests[msg_id] = request
         await self._send_msg(JSONRPCRequestMessage(id=msg_id, params=request))
-        # Same rationale as _request_approval: do not block the UI loop.

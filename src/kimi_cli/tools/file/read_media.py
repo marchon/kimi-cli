@@ -2,12 +2,10 @@ import base64
 from io import BytesIO
 from pathlib import Path
 from typing import override
-
 from kaos.path import KaosPath
 from kosong.chat_provider.kimi import Kimi
 from kosong.tooling import CallableTool2, ToolError, ToolOk, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul.agent import Runtime
 from kimi_cli.tools import SkipThisTool
 from kimi_cli.tools.file.utils import MEDIA_SNIFF_BYTES, FileType, detect_file_type
@@ -18,13 +16,57 @@ from kimi_cli.wire.types import ImageURLPart, VideoURLPart
 
 MAX_MEDIA_MEGABYTES = 100
 
+class Params(BaseModel):
+    """
+    Params class.
+    """
+    path: str = Field(
+        description=(
+            "The path to the file to read. Absolute paths are required when reading files "
+            "outside the working directory."
+        )
+    )
+
+# Internal Function Index:
+#
+#   [func] _to_data_url
+#   [func] _extract_image_size
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _to_data_url(mime_type: str, data: bytes) -> str:
+    """
+     To Data Url.
+    
+    Args:
+    mime_type: Description.
+    data: Description.
+    
+    Returns:
+        Description.
+    """
     encoded = base64.b64encode(data).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
 
-
 def _extract_image_size(data: bytes) -> tuple[int, int] | None:
+    """
+     Extract Image Size.
+    
+    Args:
+    data: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         from PIL import Image
     except Exception:
@@ -36,17 +78,10 @@ def _extract_image_size(data: bytes) -> tuple[int, int] | None:
     except Exception:
         return None
 
-
-class Params(BaseModel):
-    path: str = Field(
-        description=(
-            "The path to the file to read. Absolute paths are required when reading files "
-            "outside the working directory."
-        )
-    )
-
-
 class ReadMediaFile(CallableTool2[Params]):
+    """
+    ReadMediaFile class.
+    """
     name: str = "ReadMediaFile"
     params: type[Params] = Params
 

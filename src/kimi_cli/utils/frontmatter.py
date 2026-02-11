@@ -1,10 +1,7 @@
 from __future__ import annotations
-
 from pathlib import Path
 from typing import Any, cast
-
 import yaml
-
 
 def parse_frontmatter(text: str) -> dict[str, Any] | None:
     """
@@ -38,7 +35,6 @@ def parse_frontmatter(text: str) -> dict[str, Any] | None:
         raise ValueError("Frontmatter YAML must be a mapping.")
 
     return cast(dict[str, Any], raw_data)
-
 
 def read_frontmatter(path: Path) -> dict[str, Any] | None:
     """

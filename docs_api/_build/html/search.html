@@ -1,0 +1,345 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search &mdash; Kimi Code CLI 1.12.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=fe8e256b"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="#" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #2980B9" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Kimi Code CLI
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="#" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#command-line">Command Line</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#python-api">Python API</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#programmatic-usage">Programmatic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#running-without-ui">Running Without UI</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#configuration-file">Configuration File</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quickstart.html#environment-variables">Environment Variables</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#core-components">Core Components</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#kimicli">KimiCLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#kimisoul">KimiSoul</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#runtime">Runtime</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#wire-protocol">Wire Protocol</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#tool-system">Tool System</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#data-flow">Data Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#key-design-patterns">Key Design Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#dependency-injection">Dependency Injection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#async-await">Async/Await</a></li>
+<li class="toctree-l3"><a class="reference internal" href="architecture.html#type-safety">Type Safety</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.html">kimi_cli</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#submodules">Submodules</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-app">kimi_cli.app</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#key-classes">Key Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#key-functions">Key Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-config">kimi_cli.config</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#configuration-classes">Configuration Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.html#configuration-functions">Configuration Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-session">kimi_cli.session</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-llm">kimi_cli.llm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-agentspec">kimi_cli.agentspec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-metadata">kimi_cli.metadata</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-share">kimi_cli.share</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-constant">kimi_cli.constant</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.html#kimi-cli-exception">kimi_cli.exception</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.cli.html">kimi_cli.cli</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.cli.html#main-cli">Main CLI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.cli.html#subcommands">Subcommands</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.soul.html">kimi_cli.soul</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#submodules">Submodules</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-kimisoul">kimi_cli.soul.kimisoul</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#key-classes">Key Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-agent">kimi_cli.soul.agent</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#id1">Key Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#key-functions">Key Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-toolset">kimi_cli.soul.toolset</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#id2">Key Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.soul.html#id3">Key Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-context">kimi_cli.soul.context</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-approval">kimi_cli.soul.approval</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-compaction">kimi_cli.soul.compaction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-slash">kimi_cli.soul.slash</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-message">kimi_cli.soul.message</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.soul.html#kimi-cli-soul-denwarenji">kimi_cli.soul.denwarenji</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.tools.html">kimi_cli.tools</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#tool-categories">Tool Categories</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#display-blocks">Display Blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#utilities">Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-shell">kimi_cli.tools.shell</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-file">kimi_cli.tools.file</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-web">kimi_cli.tools.web</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-multiagent">kimi_cli.tools.multiagent</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-todo">kimi_cli.tools.todo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-think">kimi_cli.tools.think</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.tools.html#kimi-cli-tools-dmail">kimi_cli.tools.dmail</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.wire.html">kimi_cli.wire</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.wire.html#core-wire-components">Core Wire Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.wire.html#message-types">Message Types</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.wire.html#events">Events</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.wire.html#requests">Requests</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.wire.html#type-helpers">Type Helpers</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.wire.html#supporting-modules">Supporting Modules</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.ui.html">kimi_cli.ui</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#ui-modes">UI Modes</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#kimi-cli-ui-shell">kimi_cli.ui.shell</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.ui.html#shell-components">Shell Components</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#kimi-cli-ui-print">kimi_cli.ui.print</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.ui.html#kimi-cli-ui-acp">kimi_cli.ui.acp</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.utils.html">kimi_cli.utils</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.utils.html#utility-modules">Utility Modules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.utils.html#rich-utilities">Rich Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.web.html">kimi_cli.web</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.web.html#web-components">Web Components</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#main-application">Main Application</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#authentication">Authentication</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#models">Models</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#api-endpoints">API Endpoints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#runner">Runner</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/kimi_cli.web.html#store">Store</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.acp.html">kimi_cli.acp</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.acp.html#acp-components">ACP Components</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.auth.html">kimi_cli.auth</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.auth.html#oauth">OAuth</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.auth.html#platforms">Platforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/kimi_cli.skill.html">kimi_cli.skill</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/kimi_cli.skill.html#flow-skills">Flow Skills</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ui_reference.html">UI Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ui_reference.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ui_reference.html#shell-ui">Shell UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#usage">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#keyboard-shortcuts">Keyboard Shortcuts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#slash-commands">Slash Commands</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ui_reference.html#print-ui">Print UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#id1">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#options">Options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ui_reference.html#acp-server">ACP Server</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#id2">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#features">Features</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ui_reference.html#wire-mode">Wire Mode</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#id3">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#wire-messages">Wire Messages</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ui_reference.html#web-ui">Web UI</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#id4">Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#id5">Features</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ui_reference.html#python-api">Python API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#creating-ui-instances">Creating UI Instances</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ui_reference.html#custom-ui-development">Custom UI Development</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli_reference.html">CLI Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#main-command">Main Command</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#global-options">Global Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#meta-options">Meta Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#configuration-options">Configuration Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#run-mode-options">Run Mode Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#customization-options">Customization Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#loop-control-options">Loop Control Options</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#subcommands">Subcommands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#login">login</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#logout">logout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#acp">acp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#term">term</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#info">info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#mcp">mcp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#web">web</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cli_reference.html#examples">Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#advanced-usage">Advanced Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cli_reference.html#scripting-examples">Scripting Examples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #2980B9" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Kimi Code CLI</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Search</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <noscript>
+  <div id="fallback" class="admonition warning">
+    <p class="last">
+      Please activate JavaScript to enable the search functionality.
+    </p>
+  </div>
+  </noscript>
+
+  
+  <div id="search-results">
+  
+  </div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Moonshot AI.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+  <script>
+    jQuery(function() { Search.loadIndex("searchindex.js"); });
+  </script>
+  
+  <script id="searchindexloader"></script>
+   
+
+
+</body>
+</html>

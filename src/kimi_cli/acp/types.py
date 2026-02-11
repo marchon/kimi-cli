@@ -1,8 +1,5 @@
 from __future__ import annotations
-
 import acp
-
-MCPServer = acp.schema.HttpMcpServer | acp.schema.SseMcpServer | acp.schema.McpServerStdio
 
 ACPContentBlock = (
     acp.schema.TextContentBlock
@@ -11,3 +8,5 @@ ACPContentBlock = (
     | acp.schema.ResourceContentBlock
     | acp.schema.EmbeddedResourceContentBlock
 )
+
+MCPServer = acp.schema.HttpMcpServer | acp.schema.SseMcpServer | acp.schema.McpServerStdio

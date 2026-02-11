@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 import acp
-
 from kimi_cli.acp.types import ACPContentBlock
 from kimi_cli.utils.logging import logger
 from kimi_cli.wire.types import (
@@ -13,8 +11,16 @@ from kimi_cli.wire.types import (
     ToolReturnValue,
 )
 
-
 def acp_blocks_to_content_parts(prompt: list[ACPContentBlock]) -> list[ContentPart]:
+    """
+    Acp Blocks To Content Parts.
+    
+    Args:
+    prompt: Description.
+    
+    Returns:
+        Description.
+    """
     content: list[ContentPart] = []
     for block in prompt:
         match block:
@@ -32,10 +38,18 @@ def acp_blocks_to_content_parts(prompt: list[ACPContentBlock]) -> list[ContentPa
                 logger.warning("Unsupported prompt content block: {block}", block=block)
     return content
 
-
 def display_block_to_acp_content(
     block: DisplayBlock,
 ) -> acp.schema.FileEditToolCallContent | None:
+    """
+    Display Block To Acp Content.
+    
+    Args:
+    block: Description.
+    
+    Returns:
+        Description.
+    """
     if isinstance(block, DiffDisplayBlock):
         return acp.schema.FileEditToolCallContent(
             type="diff",
@@ -46,7 +60,6 @@ def display_block_to_acp_content(
 
     return None
 
-
 def tool_result_to_acp_content(
     tool_ret: ToolReturnValue,
 ) -> list[
@@ -54,6 +67,15 @@ def tool_result_to_acp_content(
     | acp.schema.FileEditToolCallContent
     | acp.schema.TerminalToolCallContent
 ]:
+    """
+    Tool Result To Acp Content.
+    
+    Args:
+    tool_ret: Description.
+    
+    Returns:
+        Description.
+    """
     from kimi_cli.acp.tools import HideOutputDisplayBlock
 
     def _to_acp_content(

@@ -1,35 +1,14 @@
 from __future__ import annotations
-
 import asyncio
 import json
 import sys
 from pathlib import Path
 from typing import Annotated, Literal
-
 import typer
-
 from kimi_cli.constant import VERSION
-
 from .info import cli as info_cli
 from .mcp import cli as mcp_cli
 from .web import cli as web_cli
-
-
-class Reload(Exception):
-    """Reload configuration."""
-
-    def __init__(self, session_id: str | None = None):
-        super().__init__("reload")
-        self.session_id = session_id
-
-
-class SwitchToWeb(Exception):
-    """Switch to web interface."""
-
-    def __init__(self, session_id: str | None = None):
-        super().__init__("switch_to_web")
-        self.session_id = session_id
-
 
 cli = typer.Typer(
     epilog="""\b\
@@ -40,16 +19,179 @@ LLM friendly version: https://moonshotai.github.io/kimi-cli/llms.txt""",
     help="Kimi, your next CLI agent.",
 )
 
-UIMode = Literal["shell", "print", "acp", "wire"]
+if __name__ == "__main__":
+    if "kimi_cli.cli" not in sys.modules:
+        sys.modules["kimi_cli.cli"] = sys.modules[__name__]
+
+    sys.exit(cli())
+
+cli.add_typer(info_cli, name="info")
+
+cli.add_typer(mcp_cli, name="mcp")
+
+cli.add_typer(web_cli, name="web")
+
+@cli.command()
+def acp():
+    """Run Kimi Code CLI ACP server."""
+    from kimi_cli.acp import acp_main
+
+    acp_main()
+
 InputFormat = Literal["text", "stream-json"]
+
+@cli.command()
+def logout(
+    json: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit OAuth events as JSON lines.",
+    ),
+) -> None:
+    """Logout from your Kimi account."""
+    from rich.console import Console
+
+    from kimi_cli.auth.oauth import logout_kimi_code
+    from kimi_cli.config import load_config
+
+    async def _run() -> bool:
+        ok = True
+        if json:
+            async for event in logout_kimi_code(load_config()):
+                typer.echo(event.json)
+                if event.type == "error":
+                    ok = False
+            return ok
+
+        console = Console()
+        async for event in logout_kimi_code(load_config()):
+            match event.type:
+                case "error":
+                    style = "red"
+                case "success":
+                    style = "green"
+                case _:
+                    style = None
+            console.print(event.message, markup=False, style=style)
+            if event.type == "error":
+                ok = False
+        return ok
+
+    ok = asyncio.run(_run())
+    if not ok:
+        raise typer.Exit(code=1)
+
+@cli.command()
+def login(
+    json: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit OAuth events as JSON lines.",
+    ),
+) -> None:
+    """Login to your Kimi account."""
+    from rich.console import Console
+    from rich.status import Status
+
+    from kimi_cli.auth.oauth import login_kimi_code
+    from kimi_cli.config import load_config
+
+    async def _run() -> bool:
+        if json:
+            ok = True
+            async for event in login_kimi_code(load_config()):
+                typer.echo(event.json)
+                if event.type == "error":
+                    ok = False
+            return ok
+
+        console = Console()
+        ok = True
+        status: Status | None = None
+        try:
+            async for event in login_kimi_code(load_config()):
+                if event.type == "waiting":
+                    if status is None:
+                        status = console.status("Waiting for user authorization...")
+                        status.start()
+                    continue
+                if status is not None:
+                    status.stop()
+                    status = None
+                match event.type:
+                    case "error":
+                        style = "red"
+                    case "success":
+                        style = "green"
+                    case _:
+                        style = None
+                console.print(event.message, markup=False, style=style)
+                if event.type == "error":
+                    ok = False
+        finally:
+            if status is not None:
+                status.stop()
+        return ok
+
+    ok = asyncio.run(_run())
+    if not ok:
+        raise typer.Exit(code=1)
+
 OutputFormat = Literal["text", "stream-json"]
+
+@cli.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def term(
+    ctx: typer.Context,
+) -> None:
+    """Run Toad TUI backed by Kimi Code CLI ACP server."""
+    from .toad import run_term
+
+    run_term(ctx)
+
+UIMode = Literal["shell", "print", "acp", "wire"]
+
+# Internal Function Index:
+#
+#   [func] _version_callback
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _version_callback(value: bool) -> None:
+    """
+     Version Callback.
+    
+    Args:
+    value: Description.
+    
+    Returns:
+        Description.
+    """
     if value:
         typer.echo(f"kimi, version {VERSION}")
         raise typer.Exit()
 
+class Reload(Exception):
+    """Reload configuration."""
+
+    def __init__(self, session_id: str | None = None):
+        super().__init__("reload")
+        self.session_id = session_id
+
+class SwitchToWeb(Exception):
+    """Switch to web interface."""
+
+    def __init__(self, session_id: str | None = None):
+        super().__init__("switch_to_web")
+        self.session_id = session_id
 
 @cli.callback(invoke_without_command=True)
 def kimi(
@@ -619,127 +761,6 @@ def kimi(
 
         run_web_server(open_browser=True)
 
-
-cli.add_typer(info_cli, name="info")
-
-
-@cli.command()
-def login(
-    json: bool = typer.Option(
-        False,
-        "--json",
-        help="Emit OAuth events as JSON lines.",
-    ),
-) -> None:
-    """Login to your Kimi account."""
-    from rich.console import Console
-    from rich.status import Status
-
-    from kimi_cli.auth.oauth import login_kimi_code
-    from kimi_cli.config import load_config
-
-    async def _run() -> bool:
-        if json:
-            ok = True
-            async for event in login_kimi_code(load_config()):
-                typer.echo(event.json)
-                if event.type == "error":
-                    ok = False
-            return ok
-
-        console = Console()
-        ok = True
-        status: Status | None = None
-        try:
-            async for event in login_kimi_code(load_config()):
-                if event.type == "waiting":
-                    if status is None:
-                        status = console.status("Waiting for user authorization...")
-                        status.start()
-                    continue
-                if status is not None:
-                    status.stop()
-                    status = None
-                match event.type:
-                    case "error":
-                        style = "red"
-                    case "success":
-                        style = "green"
-                    case _:
-                        style = None
-                console.print(event.message, markup=False, style=style)
-                if event.type == "error":
-                    ok = False
-        finally:
-            if status is not None:
-                status.stop()
-        return ok
-
-    ok = asyncio.run(_run())
-    if not ok:
-        raise typer.Exit(code=1)
-
-
-@cli.command()
-def logout(
-    json: bool = typer.Option(
-        False,
-        "--json",
-        help="Emit OAuth events as JSON lines.",
-    ),
-) -> None:
-    """Logout from your Kimi account."""
-    from rich.console import Console
-
-    from kimi_cli.auth.oauth import logout_kimi_code
-    from kimi_cli.config import load_config
-
-    async def _run() -> bool:
-        ok = True
-        if json:
-            async for event in logout_kimi_code(load_config()):
-                typer.echo(event.json)
-                if event.type == "error":
-                    ok = False
-            return ok
-
-        console = Console()
-        async for event in logout_kimi_code(load_config()):
-            match event.type:
-                case "error":
-                    style = "red"
-                case "success":
-                    style = "green"
-                case _:
-                    style = None
-            console.print(event.message, markup=False, style=style)
-            if event.type == "error":
-                ok = False
-        return ok
-
-    ok = asyncio.run(_run())
-    if not ok:
-        raise typer.Exit(code=1)
-
-
-@cli.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def term(
-    ctx: typer.Context,
-) -> None:
-    """Run Toad TUI backed by Kimi Code CLI ACP server."""
-    from .toad import run_term
-
-    run_term(ctx)
-
-
-@cli.command()
-def acp():
-    """Run Kimi Code CLI ACP server."""
-    from kimi_cli.acp import acp_main
-
-    acp_main()
-
-
 @cli.command(name="__web-worker", hidden=True)
 def web_worker(session_id: str) -> None:
     """Run web worker subprocess (internal)."""
@@ -755,14 +776,3 @@ def web_worker(session_id: str) -> None:
 
     enable_logging(debug=False)
     asyncio.run(run_worker(parsed_session_id))
-
-
-cli.add_typer(mcp_cli, name="mcp")
-cli.add_typer(web_cli, name="web")
-
-
-if __name__ == "__main__":
-    if "kimi_cli.cli" not in sys.modules:
-        sys.modules["kimi_cli.cli"] = sys.modules[__name__]
-
-    sys.exit(cli())

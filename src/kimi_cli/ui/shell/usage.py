@@ -1,18 +1,13 @@
-"""This file is pure vibe-coded. If any bugs are found, let's just rewrite it..."""
-
 from __future__ import annotations
-
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
-
 import aiohttp
 from rich.console import Group, RenderableType
 from rich.panel import Panel
 from rich.progress_bar import ProgressBar
 from rich.table import Table
 from rich.text import Text
-
 from kimi_cli.auth import KIMI_CODE_PLATFORM_ID
 from kimi_cli.auth.platforms import get_platform_by_id, parse_managed_provider_key
 from kimi_cli.config import LLMModel
@@ -22,17 +17,150 @@ from kimi_cli.ui.shell.slash import registry
 from kimi_cli.utils.aiohttp import new_client_session
 from kimi_cli.utils.datetime import format_duration
 
+"""This file is pure vibe-coded. If any bugs are found, let's just rewrite it..."""
+
 if TYPE_CHECKING:
     from kimi_cli.ui.shell import Shell
 
-
 @dataclass(slots=True, frozen=True)
 class UsageRow:
+    """
+    UsageRow class.
+    """
     label: str
     used: int
     limit: int
     reset_hint: str | None = None
 
+# Internal Function Index:
+#
+#   [func] _usage_url
+#   [func] _fetch_usage
+#   [func] _parse_usage_payload
+#   [func] _to_usage_row
+#   [func] _limit_label
+#   [func] _reset_hint
+#   [func] _format_reset_time
+#   [func] _to_int
+#   [func] _build_usage_panel
+#   [func] _format_row
+#   [func] _ratio_color
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _format_reset_time(val: str) -> str:
+    """Format ISO timestamp to a readable duration."""
+    from datetime import UTC, datetime
+
+    try:
+        # Parse ISO format like "2025-12-23T05:24:18.443553353Z"
+        # Truncate nanoseconds to microseconds for Python compatibility
+        if "." in val and val.endswith("Z"):
+            base, frac = val[:-1].split(".")
+            frac = frac[:6]  # Keep only microseconds
+            val = f"{base}.{frac}Z"
+        dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+        now = datetime.now(UTC)
+        delta = dt - now
+
+        if delta.total_seconds() <= 0:
+            return "reset"
+        return f"resets in {format_duration(int(delta.total_seconds()))}"
+    except (ValueError, TypeError):
+        return f"resets at {val}"
+
+def _to_int(value: Any) -> int | None:
+    """
+     To Int.
+    
+    Args:
+    value: Description.
+    
+    Returns:
+        Description.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+def _reset_hint(data: Mapping[str, Any]) -> str | None:
+    """
+     Reset Hint.
+    
+    Args:
+    data: Description.
+    
+    Returns:
+        Description.
+    """
+    for key in ("reset_at", "resetAt", "reset_time", "resetTime"):
+        if val := data.get(key):
+            return _format_reset_time(str(val))
+
+    for key in ("reset_in", "resetIn", "ttl", "window"):
+        seconds = _to_int(data.get(key))
+        if seconds:
+            return f"resets in {format_duration(seconds)}"
+
+    return None
+
+def _to_usage_row(data: Mapping[str, Any], *, default_label: str) -> UsageRow | None:
+    """
+     To Usage Row.
+    
+    Args:
+    data: Description.
+    default_label: Description.
+    
+    Returns:
+        Description.
+    """
+    limit = _to_int(data.get("limit"))
+    # Support both "used" and "remaining" (used = limit - remaining)
+    used = _to_int(data.get("used"))
+    if used is None:
+        remaining = _to_int(data.get("remaining"))
+        if remaining is not None and limit is not None:
+            used = limit - remaining
+    if used is None and limit is None:
+        return None
+    return UsageRow(
+        label=str(data.get("name") or data.get("title") or default_label),
+        used=used or 0,
+        limit=limit or 0,
+        reset_hint=_reset_hint(data),
+    )
+
+def _usage_url(model: LLMModel | None) -> str | None:
+    """
+     Usage Url.
+    
+    Args:
+    model: Description.
+    
+    Returns:
+        Description.
+    """
+    if model is None:
+        return None
+    platform_id = parse_managed_provider_key(model.provider)
+    if platform_id is None:
+        return None
+    platform = get_platform_by_id(platform_id)
+    if platform is None or platform.id != KIMI_CODE_PLATFORM_ID:
+        return None
+    base_url = platform.base_url.rstrip("/")
+    return f"{base_url}/usages"
 
 @registry.command(aliases=["/status"])
 async def usage(app: Shell, args: str):
@@ -75,21 +203,17 @@ async def usage(app: Shell, args: str):
 
     console.print(_build_usage_panel(summary, limits))
 
-
-def _usage_url(model: LLMModel | None) -> str | None:
-    if model is None:
-        return None
-    platform_id = parse_managed_provider_key(model.provider)
-    if platform_id is None:
-        return None
-    platform = get_platform_by_id(platform_id)
-    if platform is None or platform.id != KIMI_CODE_PLATFORM_ID:
-        return None
-    base_url = platform.base_url.rstrip("/")
-    return f"{base_url}/usages"
-
-
 async def _fetch_usage(url: str, api_key: str) -> Mapping[str, Any]:
+    """
+     Fetch Usage.
+    
+    Args:
+    url: Description.
+    api_key: Description.
+    
+    Returns:
+        Description.
+    """
     async with (
         new_client_session() as session,
         session.get(
@@ -100,10 +224,18 @@ async def _fetch_usage(url: str, api_key: str) -> Mapping[str, Any]:
     ):
         return await resp.json()
 
-
 def _parse_usage_payload(
     payload: Mapping[str, Any],
 ) -> tuple[UsageRow | None, list[UsageRow]]:
+    """
+     Parse Usage Payload.
+    
+    Args:
+    payload: Description.
+    
+    Returns:
+        Description.
+    """
     summary: UsageRow | None = None
     limits: list[UsageRow] = []
 
@@ -135,31 +267,24 @@ def _parse_usage_payload(
 
     return summary, limits
 
-
-def _to_usage_row(data: Mapping[str, Any], *, default_label: str) -> UsageRow | None:
-    limit = _to_int(data.get("limit"))
-    # Support both "used" and "remaining" (used = limit - remaining)
-    used = _to_int(data.get("used"))
-    if used is None:
-        remaining = _to_int(data.get("remaining"))
-        if remaining is not None and limit is not None:
-            used = limit - remaining
-    if used is None and limit is None:
-        return None
-    return UsageRow(
-        label=str(data.get("name") or data.get("title") or default_label),
-        used=used or 0,
-        limit=limit or 0,
-        reset_hint=_reset_hint(data),
-    )
-
-
 def _limit_label(
     item: Mapping[str, Any],
     detail: Mapping[str, Any],
     window: Mapping[str, Any],
     idx: int,
 ) -> str:
+    """
+     Limit Label.
+    
+    Args:
+    item: Description.
+    detail: Description.
+    window: Description.
+    idx: Description.
+    
+    Returns:
+        Description.
+    """
     # Try to extract a human-readable label
     for key in ("name", "title", "scope"):
         if val := (item.get(key) or detail.get(key)):
@@ -182,50 +307,17 @@ def _limit_label(
 
     return f"Limit #{idx + 1}"
 
-
-def _reset_hint(data: Mapping[str, Any]) -> str | None:
-    for key in ("reset_at", "resetAt", "reset_time", "resetTime"):
-        if val := data.get(key):
-            return _format_reset_time(str(val))
-
-    for key in ("reset_in", "resetIn", "ttl", "window"):
-        seconds = _to_int(data.get(key))
-        if seconds:
-            return f"resets in {format_duration(seconds)}"
-
-    return None
-
-
-def _format_reset_time(val: str) -> str:
-    """Format ISO timestamp to a readable duration."""
-    from datetime import UTC, datetime
-
-    try:
-        # Parse ISO format like "2025-12-23T05:24:18.443553353Z"
-        # Truncate nanoseconds to microseconds for Python compatibility
-        if "." in val and val.endswith("Z"):
-            base, frac = val[:-1].split(".")
-            frac = frac[:6]  # Keep only microseconds
-            val = f"{base}.{frac}Z"
-        dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
-        now = datetime.now(UTC)
-        delta = dt - now
-
-        if delta.total_seconds() <= 0:
-            return "reset"
-        return f"resets in {format_duration(int(delta.total_seconds()))}"
-    except (ValueError, TypeError):
-        return f"resets at {val}"
-
-
-def _to_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _build_usage_panel(summary: UsageRow | None, limits: list[UsageRow]) -> Panel:
+    """
+     Build Usage Panel.
+    
+    Args:
+    summary: Description.
+    limits: Description.
+    
+    Returns:
+        Description.
+    """
     rows = ([summary] if summary else []) + limits
     if not rows:
         return Panel(
@@ -248,8 +340,17 @@ def _build_usage_panel(summary: UsageRow | None, limits: list[UsageRow]) -> Pane
         expand=False,
     )
 
-
 def _format_row(row: UsageRow, label_width: int) -> RenderableType:
+    """
+     Format Row.
+    
+    Args:
+    row: Description.
+    label_width: Description.
+    
+    Returns:
+        Description.
+    """
     ratio = (row.limit - row.used) / row.limit if row.limit > 0 else 0
     color = _ratio_color(ratio)
 
@@ -269,8 +370,16 @@ def _format_row(row: UsageRow, label_width: int) -> RenderableType:
     t.add_row(label, bar, detail)
     return t
 
-
 def _ratio_color(ratio: float) -> str:
+    """
+     Ratio Color.
+    
+    Args:
+    ratio: Description.
+    
+    Returns:
+        Description.
+    """
     if ratio >= 0.9:
         return "red"
     if ratio >= 0.7:

@@ -4,11 +4,29 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-
 import typer
+
+# Internal Function Index:
+#
+#   [func] _default_acp_command
+#   [func] _default_toad_command
+#   [func] _extract_project_dir
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _default_acp_command() -> list[str]:
+    """
+     Default Acp Command.
+    """
     argv0 = sys.argv[0]
     if argv0:
         resolved = shutil.which(argv0)
@@ -22,8 +40,10 @@ def _default_acp_command() -> list[str]:
 
     return [sys.executable, "-m", "kimi_cli.cli", "acp"]
 
-
 def _default_toad_command() -> list[str]:
+    """
+     Default Toad Command.
+    """
     if sys.version_info < (3, 14):
         typer.echo("`kimi term` requires Python 3.14+ because Toad requires it.", err=True)
         raise typer.Exit(code=1)
@@ -35,8 +55,16 @@ def _default_toad_command() -> list[str]:
         raise typer.Exit(code=1)
     return [sys.executable, "-m", "toad.cli"]
 
-
 def _extract_project_dir(extra_args: list[str]) -> Path | None:
+    """
+     Extract Project Dir.
+    
+    Args:
+    extra_args: Description.
+    
+    Returns:
+        Description.
+    """
     work_dir: str | None = None
     idx = 0
     while idx < len(extra_args):
@@ -57,8 +85,16 @@ def _extract_project_dir(extra_args: list[str]) -> Path | None:
 
     return Path(work_dir).expanduser().resolve()
 
-
 def run_term(ctx: typer.Context) -> None:
+    """
+    Run Term.
+    
+    Args:
+    ctx: Description.
+    
+    Returns:
+        Description.
+    """
     extra_args = list(ctx.args)
     acp_args = _default_acp_command()
     acp_command = shlex.join(acp_args)

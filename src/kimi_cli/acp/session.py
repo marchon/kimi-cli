@@ -1,14 +1,11 @@
 from __future__ import annotations
-
 import asyncio
 import uuid
 from contextvars import ContextVar
-
 import acp
 import streamingjson  # type: ignore[reportMissingTypeStubs]
 from kaos import Kaos, reset_current_kaos, set_current_kaos
 from kosong.chat_provider import ChatProviderError
-
 from kimi_cli.acp.convert import (
     acp_blocks_to_content_parts,
     display_block_to_acp_content,
@@ -40,9 +37,66 @@ from kimi_cli.wire.types import (
     TurnEnd,
 )
 
+# Internal Function Index:
+#
+#   [func] _current_turn_id
+#   [func] _terminal_tool_call_ids
+#   [class] _ToolCallState
+#   [class] _TurnState
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
 _current_turn_id = ContextVar[str | None]("current_turn_id", default=None)
+
 _terminal_tool_call_ids = ContextVar[set[str] | None]("terminal_tool_call_ids", default=None)
 
+def should_hide_terminal_output(tool_call_id: str) -> bool:
+    """
+    Should Hide Terminal Output.
+    
+    Args:
+    tool_call_id: Description.
+    
+    Returns:
+        Description.
+    """
+    calls = _terminal_tool_call_ids.get()
+    return calls is not None and tool_call_id in calls
+
+def register_terminal_tool_call_id(tool_call_id: str) -> None:
+    """
+    Register Terminal Tool Call Id.
+    
+    Args:
+    tool_call_id: Description.
+    
+    Returns:
+        Description.
+    """
+    calls = _terminal_tool_call_ids.get()
+    if calls is not None:
+        calls.add(tool_call_id)
+
+class _TurnState:
+    """
+    _TurnState class.
+    """
+    def __init__(self):
+        self.id = str(uuid.uuid4())
+        """Unique ID for the turn."""
+        self.tool_calls: dict[str, _ToolCallState] = {}
+        """Map of tool call ID (LLM-side ID) to tool call state."""
+        self.last_tool_call: _ToolCallState | None = None
+        self.cancel_event = asyncio.Event()
 
 def get_current_acp_tool_call_id_or_none() -> str | None:
     """See `_ToolCallState.acp_tool_call_id`."""
@@ -55,18 +109,6 @@ def get_current_acp_tool_call_id_or_none() -> str | None:
     if tool_call is None:
         return None
     return f"{turn_id}/{tool_call.id}"
-
-
-def register_terminal_tool_call_id(tool_call_id: str) -> None:
-    calls = _terminal_tool_call_ids.get()
-    if calls is not None:
-        calls.add(tool_call_id)
-
-
-def should_hide_terminal_output(tool_call_id: str) -> bool:
-    calls = _terminal_tool_call_ids.get()
-    return calls is not None and tool_call_id in calls
-
 
 class _ToolCallState:
     """Manages the state of a single tool call for streaming updates."""
@@ -101,18 +143,10 @@ class _ToolCallState:
             return f"{tool_name}: {subtitle}"
         return tool_name
 
-
-class _TurnState:
-    def __init__(self):
-        self.id = str(uuid.uuid4())
-        """Unique ID for the turn."""
-        self.tool_calls: dict[str, _ToolCallState] = {}
-        """Map of tool call ID (LLM-side ID) to tool call state."""
-        self.last_tool_call: _ToolCallState | None = None
-        self.cancel_event = asyncio.Event()
-
-
 class ACPSession:
+    """
+    ACPSession class.
+    """
     def __init__(
         self,
         id: str,

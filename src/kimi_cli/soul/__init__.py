@@ -1,29 +1,27 @@
 from __future__ import annotations
-
 import asyncio
 import contextlib
 from collections.abc import Callable, Coroutine
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
-
 from kimi_cli.utils.aioqueue import QueueShutDown
 from kimi_cli.utils.logging import logger
 from kimi_cli.wire import Wire
 from kimi_cli.wire.file import WireFile
 from kimi_cli.wire.types import ContentPart, WireMessage
 
+"""A long-running async function to visualize the agent behavior."""
+
 if TYPE_CHECKING:
     from kimi_cli.llm import LLM, ModelCapability
     from kimi_cli.utils.slashcmd import SlashCommand
-
 
 class LLMNotSet(Exception):
     """Raised when the LLM is not set."""
 
     def __init__(self) -> None:
         super().__init__("LLM not set")
-
 
 class LLMNotSupported(Exception):
     """Raised when the LLM does not have required capabilities."""
@@ -37,7 +35,6 @@ class LLMNotSupported(Exception):
             f"{', '.join(capabilities)}."
         )
 
-
 class MaxStepsReached(Exception):
     """Raised when the maximum number of steps is reached."""
 
@@ -48,17 +45,14 @@ class MaxStepsReached(Exception):
         super().__init__(f"Max number of steps reached: {n_steps}")
         self.n_steps = n_steps
 
-
-@dataclass(frozen=True, slots=True)
-class StatusSnapshot:
-    context_usage: float
-    """The usage of the context, in percentage."""
-    yolo_enabled: bool = False
-    """Whether YOLO (auto-approve) mode is enabled."""
-
+class RunCancelled(Exception):
+    """The run was cancelled by the cancel event."""
 
 @runtime_checkable
 class Soul(Protocol):
+    """
+    Soul class.
+    """
     @property
     def name(self) -> str:
         """The name of the soul."""
@@ -109,14 +103,51 @@ class Soul(Protocol):
         """
         ...
 
+@dataclass(frozen=True, slots=True)
+class StatusSnapshot:
+    """
+    StatusSnapshot class.
+    """
+    context_usage: float
+    """The usage of the context, in percentage."""
+    yolo_enabled: bool = False
+    """Whether YOLO (auto-approve) mode is enabled."""
 
 type UILoopFn = Callable[[Wire], Coroutine[Any, Any, None]]
-"""A long-running async function to visualize the agent behavior."""
+
+# Internal Function Index:
+#
+#   [func] _current_wire
 
 
-class RunCancelled(Exception):
-    """The run was cancelled by the cancel event."""
 
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_current_wire = ContextVar[Wire | None]("current_wire", default=None)
+
+def get_wire_or_none() -> Wire | None:
+    """
+    Get the current wire or None.
+    Expect to be not None when called from anywhere in the agent loop.
+    """
+    return _current_wire.get()
+
+def wire_send(msg: WireMessage) -> None:
+    """
+    Send a wire message to the current wire.
+    Take this as `print` and `input` for souls.
+    Souls should always use this function to send wire messages.
+    """
+    wire = get_wire_or_none()
+    assert wire is not None, "Wire is expected to be set when soul is running"
+    wire.soul_side.send(msg)
 
 async def run_soul(
     soul: Soul,
@@ -181,25 +212,3 @@ async def run_soul(
             logger.warning("UI loop timed out")
         finally:
             _current_wire.reset(wire_token)
-
-
-_current_wire = ContextVar[Wire | None]("current_wire", default=None)
-
-
-def get_wire_or_none() -> Wire | None:
-    """
-    Get the current wire or None.
-    Expect to be not None when called from anywhere in the agent loop.
-    """
-    return _current_wire.get()
-
-
-def wire_send(msg: WireMessage) -> None:
-    """
-    Send a wire message to the current wire.
-    Take this as `print` and `input` for souls.
-    Souls should always use this function to send wire messages.
-    """
-    wire = get_wire_or_none()
-    assert wire is not None, "Wire is expected to be set when soul is running"
-    wire.soul_side.send(msg)

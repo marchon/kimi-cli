@@ -1,32 +1,25 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
-
 import yaml
 from pydantic import BaseModel, Field
-
 from kimi_cli.exception import AgentSpecError
 
 DEFAULT_AGENT_SPEC_VERSION = "1"
-SUPPORTED_AGENT_SPEC_VERSIONS = (DEFAULT_AGENT_SPEC_VERSION,)
-
 
 def get_agents_dir() -> Path:
+    """
+    Get Agents Dir.
+    """
     return Path(__file__).parent / "agents"
 
-
 DEFAULT_AGENT_FILE = get_agents_dir() / "default" / "agent.yaml"
-OKABE_AGENT_FILE = get_agents_dir() / "okabe" / "agent.yaml"
-
 
 class Inherit(NamedTuple):
     """Marker class for inheritance in agent spec."""
 
-
 inherit = Inherit()
-
 
 class AgentSpec(BaseModel):
     """Agent specification."""
@@ -47,13 +40,7 @@ class AgentSpec(BaseModel):
         default=inherit, description="Subagents"
     )
 
-
-class SubagentSpec(BaseModel):
-    """Subagent specification."""
-
-    path: Path = Field(description="Subagent file path")
-    description: str = Field(description="Subagent description")
-
+OKABE_AGENT_FILE = get_agents_dir() / "okabe" / "agent.yaml"
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ResolvedAgentSpec:
@@ -66,38 +53,39 @@ class ResolvedAgentSpec:
     exclude_tools: list[str]
     subagents: dict[str, SubagentSpec]
 
+class SubagentSpec(BaseModel):
+    """Subagent specification."""
 
-def load_agent_spec(agent_file: Path) -> ResolvedAgentSpec:
-    """
-    Load agent specification from file.
+    path: Path = Field(description="Subagent file path")
+    description: str = Field(description="Subagent description")
 
-    Raises:
-        FileNotFoundError: If the agent spec file is not found.
-        AgentSpecError: If the agent spec is not valid.
-    """
-    agent_spec = _load_agent_spec(agent_file)
-    assert agent_spec.extend is None, "agent extension should be recursively resolved"
-    if isinstance(agent_spec.name, Inherit):
-        raise AgentSpecError("Agent name is required")
-    if isinstance(agent_spec.system_prompt_path, Inherit):
-        raise AgentSpecError("System prompt path is required")
-    if isinstance(agent_spec.tools, Inherit):
-        raise AgentSpecError("Tools are required")
-    if isinstance(agent_spec.exclude_tools, Inherit):
-        agent_spec.exclude_tools = []
-    if isinstance(agent_spec.subagents, Inherit):
-        agent_spec.subagents = {}
-    return ResolvedAgentSpec(
-        name=agent_spec.name,
-        system_prompt_path=agent_spec.system_prompt_path,
-        system_prompt_args=agent_spec.system_prompt_args,
-        tools=agent_spec.tools or [],
-        exclude_tools=agent_spec.exclude_tools or [],
-        subagents=agent_spec.subagents or {},
-    )
+SUPPORTED_AGENT_SPEC_VERSIONS = (DEFAULT_AGENT_SPEC_VERSION,)
+
+# Internal Function Index:
+#
+#   [func] _load_agent_spec
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
 
 
 def _load_agent_spec(agent_file: Path) -> AgentSpec:
+    """
+     Load Agent Spec.
+    
+    Args:
+    agent_file: Description.
+    
+    Returns:
+        Description.
+    """
     if not agent_file.exists():
         raise AgentSpecError(f"Agent spec file not found: {agent_file}")
     if not agent_file.is_file():
@@ -141,3 +129,32 @@ def _load_agent_spec(agent_file: Path) -> AgentSpec:
             base_agent_spec.subagents = agent_spec.subagents
         agent_spec = base_agent_spec
     return agent_spec
+
+def load_agent_spec(agent_file: Path) -> ResolvedAgentSpec:
+    """
+    Load agent specification from file.
+
+    Raises:
+        FileNotFoundError: If the agent spec file is not found.
+        AgentSpecError: If the agent spec is not valid.
+    """
+    agent_spec = _load_agent_spec(agent_file)
+    assert agent_spec.extend is None, "agent extension should be recursively resolved"
+    if isinstance(agent_spec.name, Inherit):
+        raise AgentSpecError("Agent name is required")
+    if isinstance(agent_spec.system_prompt_path, Inherit):
+        raise AgentSpecError("System prompt path is required")
+    if isinstance(agent_spec.tools, Inherit):
+        raise AgentSpecError("Tools are required")
+    if isinstance(agent_spec.exclude_tools, Inherit):
+        agent_spec.exclude_tools = []
+    if isinstance(agent_spec.subagents, Inherit):
+        agent_spec.subagents = {}
+    return ResolvedAgentSpec(
+        name=agent_spec.name,
+        system_prompt_path=agent_spec.system_prompt_path,
+        system_prompt_args=agent_spec.system_prompt_args,
+        tools=agent_spec.tools or [],
+        exclude_tools=agent_spec.exclude_tools or [],
+        subagents=agent_spec.subagents or {},
+    )

@@ -1,10 +1,8 @@
 from pathlib import Path
 from typing import Literal, override
-
 from kaos.path import KaosPath
 from kosong.tooling import CallableTool2, ToolError, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul.agent import BuiltinSystemPromptArgs
 from kimi_cli.soul.approval import Approval
 from kimi_cli.tools.display import DisplayBlock
@@ -13,8 +11,10 @@ from kimi_cli.tools.utils import ToolRejectedError, load_desc
 from kimi_cli.utils.diff import build_diff_blocks
 from kimi_cli.utils.path import is_within_directory
 
-
 class Params(BaseModel):
+    """
+    Params class.
+    """
     path: str = Field(
         description=(
             "The path to the file to write. Absolute paths are required when writing files "
@@ -31,8 +31,10 @@ class Params(BaseModel):
         default="overwrite",
     )
 
-
 class WriteFile(CallableTool2[Params]):
+    """
+    WriteFile class.
+    """
     name: str = "WriteFile"
     description: str = load_desc(Path(__file__).parent / "write.md")
     params: type[Params] = Params

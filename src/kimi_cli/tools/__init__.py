@@ -1,20 +1,56 @@
 import json
 from typing import cast
-
 import streamingjson  # type: ignore[reportMissingTypeStubs]
 from kaos.path import KaosPath
 from kosong.utils.typing import JsonType
-
 from kimi_cli.utils.string import shorten_middle
-
 
 class SkipThisTool(Exception):
     """Raised when a tool decides to skip itself from the loading process."""
 
     pass
 
+# Internal Function Index:
+#
+#   [func] _normalize_path
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _normalize_path(path: str) -> str:
+    """
+     Normalize Path.
+    
+    Args:
+    path: Description.
+    
+    Returns:
+        Description.
+    """
+    cwd = str(KaosPath.cwd().canonical())
+    if path.startswith(cwd):
+        path = path[len(cwd) :].lstrip("/\\")
+    return path
 
 def extract_key_argument(json_content: str | streamingjson.Lexer, tool_name: str) -> str | None:
+    """
+    Extract Key Argument.
+    
+    Args:
+    json_content: Description.
+    tool_name: Description.
+    
+    Returns:
+        Description.
+    """
     if isinstance(json_content, streamingjson.Lexer):
         json_str = json_content.complete_json()
     else:
@@ -88,10 +124,3 @@ def extract_key_argument(json_content: str | streamingjson.Lexer, tool_name: str
                 key_argument = json_content
     key_argument = shorten_middle(key_argument, width=50)
     return key_argument
-
-
-def _normalize_path(path: str) -> str:
-    cwd = str(KaosPath.cwd().canonical())
-    if path.startswith(cwd):
-        path = path[len(cwd) :].lstrip("/\\")
-    return path

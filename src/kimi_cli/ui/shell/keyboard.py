@@ -1,16 +1,16 @@
 from __future__ import annotations
-
 import asyncio
 import sys
 import threading
 import time
 from collections.abc import AsyncGenerator, Callable
 from enum import Enum, auto
-
 from kimi_cli.utils.aioqueue import Queue
 
-
 class KeyEvent(Enum):
+    """
+    KeyEvent class.
+    """
     UP = auto()
     DOWN = auto()
     LEFT = auto()
@@ -20,8 +20,43 @@ class KeyEvent(Enum):
     TAB = auto()
     CTRL_E = auto()
 
+# Internal Function Index:
+#
+#   [func] _listen_for_keyboard_thread
+#   [func] _listen_for_keyboard_unix
+#   [func] _listen_for_keyboard_windows
+#   [func] _ARROW_KEY_MAP
+#   [func] _WINDOWS_KEY_MAP
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_ARROW_KEY_MAP: dict[bytes, KeyEvent] = {
+    b"\x1b[A": KeyEvent.UP,
+    b"\x1b[B": KeyEvent.DOWN,
+    b"\x1b[C": KeyEvent.RIGHT,
+    b"\x1b[D": KeyEvent.LEFT,
+}
+
+_WINDOWS_KEY_MAP: dict[bytes, KeyEvent] = {
+    b"H": KeyEvent.UP,  # Up arrow
+    b"P": KeyEvent.DOWN,  # Down arrow
+    b"M": KeyEvent.RIGHT,  # Right arrow
+    b"K": KeyEvent.LEFT,  # Left arrow
+}
 
 class KeyboardListener:
+    """
+    KeyboardListener class.
+    """
     def __init__(self) -> None:
         self._queue = Queue[KeyEvent]()
         self._cancel_event = threading.Event()
@@ -72,8 +107,10 @@ class KeyboardListener:
     async def get(self) -> KeyEvent:
         return await self._queue.get()
 
-
 async def listen_for_keyboard() -> AsyncGenerator[KeyEvent]:
+    """
+    Listen For Keyboard.
+    """
     listener = KeyboardListener()
     await listener.start()
 
@@ -83,18 +120,28 @@ async def listen_for_keyboard() -> AsyncGenerator[KeyEvent]:
     finally:
         await listener.stop()
 
-
 def _listen_for_keyboard_thread(
     cancel: threading.Event,
     pause: threading.Event,
     paused: threading.Event,
     emit: Callable[[KeyEvent], None],
 ) -> None:
+    """
+     Listen For Keyboard Thread.
+    
+    Args:
+    cancel: Description.
+    pause: Description.
+    paused: Description.
+    emit: Description.
+    
+    Returns:
+        Description.
+    """
     if sys.platform == "win32":
         _listen_for_keyboard_windows(cancel, pause, paused, emit)
     else:
         _listen_for_keyboard_unix(cancel, pause, paused, emit)
-
 
 def _listen_for_keyboard_unix(
     cancel: threading.Event,
@@ -102,6 +149,18 @@ def _listen_for_keyboard_unix(
     paused: threading.Event,
     emit: Callable[[KeyEvent], None],
 ) -> None:
+    """
+     Listen For Keyboard Unix.
+    
+    Args:
+    cancel: Description.
+    pause: Description.
+    paused: Description.
+    emit: Description.
+    
+    Returns:
+        Description.
+    """
     if sys.platform == "win32":
         raise RuntimeError("Unix keyboard listener requires a non-Windows platform")
 
@@ -182,13 +241,24 @@ def _listen_for_keyboard_unix(
     finally:
         termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
 
-
 def _listen_for_keyboard_windows(
     cancel: threading.Event,
     pause: threading.Event,
     paused: threading.Event,
     emit: Callable[[KeyEvent], None],
 ) -> None:
+    """
+     Listen For Keyboard Windows.
+    
+    Args:
+    cancel: Description.
+    pause: Description.
+    paused: Description.
+    emit: Description.
+    
+    Returns:
+        Description.
+    """
     if sys.platform != "win32":
         raise RuntimeError("Windows keyboard listener requires a Windows platform")
 
@@ -239,22 +309,6 @@ def _listen_for_keyboard_windows(
             if cancel.is_set():
                 break
             time.sleep(0.01)
-
-
-_ARROW_KEY_MAP: dict[bytes, KeyEvent] = {
-    b"\x1b[A": KeyEvent.UP,
-    b"\x1b[B": KeyEvent.DOWN,
-    b"\x1b[C": KeyEvent.RIGHT,
-    b"\x1b[D": KeyEvent.LEFT,
-}
-
-_WINDOWS_KEY_MAP: dict[bytes, KeyEvent] = {
-    b"H": KeyEvent.UP,  # Up arrow
-    b"P": KeyEvent.DOWN,  # Down arrow
-    b"M": KeyEvent.RIGHT,  # Right arrow
-    b"K": KeyEvent.LEFT,  # Left arrow
-}
-
 
 if __name__ == "__main__":
 

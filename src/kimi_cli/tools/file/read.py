@@ -1,21 +1,23 @@
 from pathlib import Path
 from typing import override
-
 from kaos.path import KaosPath
 from kosong.tooling import CallableTool2, ToolError, ToolOk, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul.agent import Runtime
 from kimi_cli.tools.file.utils import MEDIA_SNIFF_BYTES, detect_file_type
 from kimi_cli.tools.utils import load_desc, truncate_line
 from kimi_cli.utils.path import is_within_directory
 
-MAX_LINES = 1000
-MAX_LINE_LENGTH = 2000
 MAX_BYTES = 100 << 10  # 100KB
 
+MAX_LINE_LENGTH = 2000
+
+MAX_LINES = 1000
 
 class Params(BaseModel):
+    """
+    Params class.
+    """
     path: str = Field(
         description=(
             "The path to the file to read. Absolute paths are required when reading files "
@@ -41,8 +43,10 @@ class Params(BaseModel):
         ge=1,
     )
 
-
 class ReadFile(CallableTool2[Params]):
+    """
+    ReadFile class.
+    """
     name: str = "ReadFile"
     params: type[Params] = Params
 

@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import json
 import os
@@ -14,11 +13,9 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
-
 import aiohttp
 import keyring
 from pydantic import SecretStr
-
 from kimi_cli.auth import KIMI_CODE_PLATFORM_ID
 from kimi_cli.auth.platforms import (
     ModelInfo,
@@ -44,32 +41,88 @@ from kimi_cli.utils.logging import logger
 if TYPE_CHECKING:
     from kimi_cli.soul.agent import Runtime
 
+DEFAULT_OAUTH_HOST = "https://auth.kimi.com"
+
+@dataclass(slots=True)
+class DeviceAuthorization:
+    """
+    DeviceAuthorization class.
+    """
+    user_code: str
+    device_code: str
+    verification_uri: str
+    verification_uri_complete: str
+    expires_in: int | None
+    interval: int
+
+KEYRING_SERVICE = "kimi-code"
 
 KIMI_CODE_CLIENT_ID = "17e5f671-d194-4dfb-9706-5516cb48c098"
-KIMI_CODE_OAUTH_KEY = "oauth/kimi-code"
-DEFAULT_OAUTH_HOST = "https://auth.kimi.com"
-KEYRING_SERVICE = "kimi-code"
-REFRESH_INTERVAL_SECONDS = 60
-REFRESH_THRESHOLD_SECONDS = 300
 
+KIMI_CODE_OAUTH_KEY = "oauth/kimi-code"
 
 class OAuthError(RuntimeError):
     """OAuth flow error."""
 
+class OAuthDeviceExpired(OAuthError):
+    """Device authorization expired."""
+
+OAuthEventKind = Literal["info", "error", "waiting", "verification_url", "success"]
 
 class OAuthUnauthorized(OAuthError):
     """OAuth credentials rejected."""
 
+REFRESH_INTERVAL_SECONDS = 60
 
-class OAuthDeviceExpired(OAuthError):
-    """Device authorization expired."""
+REFRESH_THRESHOLD_SECONDS = 300
+
+# Internal Function Index:
+#
+#   [func] _oauth_host
+#   [func] _device_id_path
+#   [func] _ensure_private_file
+#   [func] _device_model
+#   [func] _ascii_header_value
+#   [func] _common_headers
+#   [func] _credentials_dir
+#   [func] _credentials_path
+#   [func] _load_from_keyring
+#   [func] _delete_from_keyring
+#   [func] _load_from_file
+#   [func] _save_to_file
+#   [func] _delete_from_file
+#   [func] _request_device_token
+#   [func] _select_default_model_and_thinking
+#   [func] _apply_kimi_code_config
 
 
-OAuthEventKind = Literal["info", "error", "waiting", "verification_url", "success"]
 
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+def _device_id_path() -> Path:
+    """
+     Device Id Path.
+    """
+    return get_share_dir() / "device_id"
+
+def _oauth_host() -> str:
+    """
+     Oauth Host.
+    """
+    return os.getenv("KIMI_CODE_OAUTH_HOST") or os.getenv("KIMI_OAUTH_HOST") or DEFAULT_OAUTH_HOST
 
 @dataclass(slots=True, frozen=True)
 class OAuthEvent:
+    """
+    OAuthEvent class.
+    """
     type: OAuthEventKind
     message: str
     data: dict[str, Any] | None = None
@@ -84,9 +137,11 @@ class OAuthEvent:
             payload["data"] = self.data
         return json.dumps(payload, ensure_ascii=False)
 
-
 @dataclass(slots=True)
 class OAuthToken:
+    """
+    OAuthToken class.
+    """
     access_token: str
     refresh_token: str
     expires_at: float
@@ -124,31 +179,23 @@ class OAuthToken:
             token_type=str(payload.get("token_type") or ""),
         )
 
-
-@dataclass(slots=True)
-class DeviceAuthorization:
-    user_code: str
-    device_code: str
-    verification_uri: str
-    verification_uri_complete: str
-    expires_in: int | None
-    interval: int
-
-
-def _oauth_host() -> str:
-    return os.getenv("KIMI_CODE_OAUTH_HOST") or os.getenv("KIMI_OAUTH_HOST") or DEFAULT_OAUTH_HOST
-
-
-def _device_id_path() -> Path:
-    return get_share_dir() / "device_id"
-
-
 def _ensure_private_file(path: Path) -> None:
+    """
+     Ensure Private File.
+    
+    Args:
+    path: Description.
+    
+    Returns:
+        Description.
+    """
     with suppress(OSError):
         os.chmod(path, 0o600)
 
-
 def _device_model() -> str:
+    """
+     Device Model.
+    """
     system = platform.system()
     arch = platform.machine() or ""
     if system == "Darwin":
@@ -181,8 +228,10 @@ def _device_model() -> str:
         return f"{system} {arch}".strip()
     return "Unknown"
 
-
 def get_device_id() -> str:
+    """
+    Get Device Id.
+    """
     path = _device_id_path()
     if path.exists():
         return path.read_text(encoding="utf-8").strip()
@@ -191,8 +240,17 @@ def get_device_id() -> str:
     _ensure_private_file(path)
     return device_id
 
-
 def _ascii_header_value(value: str, *, fallback: str = "unknown") -> str:
+    """
+     Ascii Header Value.
+    
+    Args:
+    value: Description.
+    fallback: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         value.encode("ascii")
         return value
@@ -200,8 +258,10 @@ def _ascii_header_value(value: str, *, fallback: str = "unknown") -> str:
         sanitized = value.encode("ascii", errors="ignore").decode("ascii").strip()
         return sanitized or fallback
 
-
 def _common_headers() -> dict[str, str]:
+    """
+     Common Headers.
+    """
     device_name = platform.node() or socket.gethostname()
     device_model = _device_model()
     headers = {
@@ -214,19 +274,37 @@ def _common_headers() -> dict[str, str]:
     }
     return {key: _ascii_header_value(value) for key, value in headers.items()}
 
-
 def _credentials_dir() -> Path:
+    """
+     Credentials Dir.
+    """
     path = get_share_dir() / "credentials"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
-
 def _credentials_path(key: str) -> Path:
+    """
+     Credentials Path.
+    
+    Args:
+    key: Description.
+    
+    Returns:
+        Description.
+    """
     name = key.removeprefix("oauth/").split("/")[-1] or key
     return _credentials_dir() / f"{name}.json"
 
-
 def _load_from_keyring(key: str) -> OAuthToken | None:
+    """
+     Load From Keyring.
+    
+    Args:
+    key: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         raw = keyring.get_password(KEYRING_SERVICE, key)
     except Exception as exc:
@@ -243,15 +321,31 @@ def _load_from_keyring(key: str) -> OAuthToken | None:
     payload = cast(dict[str, Any], payload)
     return OAuthToken.from_dict(payload)
 
-
 def _delete_from_keyring(key: str) -> None:
+    """
+     Delete From Keyring.
+    
+    Args:
+    key: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         keyring.delete_password(KEYRING_SERVICE, key)
     except Exception:
         return
 
-
 def _load_from_file(key: str) -> OAuthToken | None:
+    """
+     Load From File.
+    
+    Args:
+    key: Description.
+    
+    Returns:
+        Description.
+    """
     path = _credentials_path(key)
     if not path.exists():
         return None
@@ -264,20 +358,45 @@ def _load_from_file(key: str) -> OAuthToken | None:
     payload = cast(dict[str, Any], payload)
     return OAuthToken.from_dict(payload)
 
-
 def _save_to_file(key: str, token: OAuthToken) -> None:
+    """
+     Save To File.
+    
+    Args:
+    key: Description.
+    token: Description.
+    
+    Returns:
+        Description.
+    """
     path = _credentials_path(key)
     path.write_text(json.dumps(token.to_dict(), ensure_ascii=False), encoding="utf-8")
     _ensure_private_file(path)
 
-
 def _delete_from_file(key: str) -> None:
+    """
+     Delete From File.
+    
+    Args:
+    key: Description.
+    
+    Returns:
+        Description.
+    """
     path = _credentials_path(key)
     if path.exists():
         path.unlink()
 
-
 def load_tokens(ref: OAuthRef) -> OAuthToken | None:
+    """
+    Load Tokens.
+    
+    Args:
+    ref: Description.
+    
+    Returns:
+        Description.
+    """
     file_token = _load_from_file(ref.key)
     if file_token is not None:
         return file_token
@@ -295,22 +414,41 @@ def load_tokens(ref: OAuthRef) -> OAuthToken | None:
             _delete_from_keyring(ref.key)
     return token
 
-
 def save_tokens(ref: OAuthRef, token: OAuthToken) -> OAuthRef:
+    """
+    Save Tokens.
+    
+    Args:
+    ref: Description.
+    token: Description.
+    
+    Returns:
+        Description.
+    """
     if ref.storage == "keyring":
         logger.warning("Keyring storage is deprecated; saving OAuth tokens to file.")
         ref = OAuthRef(storage="file", key=ref.key)
     _save_to_file(ref.key, token)
     return ref
 
-
 def delete_tokens(ref: OAuthRef) -> None:
+    """
+    Delete Tokens.
+    
+    Args:
+    ref: Description.
+    
+    Returns:
+        Description.
+    """
     if ref.storage == "keyring":
         _delete_from_keyring(ref.key)
     _delete_from_file(ref.key)
 
-
 async def request_device_authorization() -> DeviceAuthorization:
+    """
+    Request Device Authorization.
+    """
     async with (
         new_client_session() as session,
         session.post(
@@ -332,8 +470,16 @@ async def request_device_authorization() -> DeviceAuthorization:
         interval=int(data.get("interval") or 5),
     )
 
-
 async def _request_device_token(auth: DeviceAuthorization) -> tuple[int, dict[str, Any]]:
+    """
+     Request Device Token.
+    
+    Args:
+    auth: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         async with (
             new_client_session() as session,
@@ -358,8 +504,16 @@ async def _request_device_token(auth: DeviceAuthorization) -> tuple[int, dict[st
         raise OAuthError(f"Token polling server error: {status}.")
     return status, data
 
-
 async def refresh_token(refresh_token: str) -> OAuthToken:
+    """
+    Refresh Token.
+    
+    Args:
+    refresh_token: Description.
+    
+    Returns:
+        Description.
+    """
     async with (
         new_client_session() as session,
         session.post(
@@ -380,15 +534,22 @@ async def refresh_token(refresh_token: str) -> OAuthToken:
         raise OAuthError(data.get("error_description") or "Token refresh failed.")
     return OAuthToken.from_response(data)
 
-
 def _select_default_model_and_thinking(models: list[ModelInfo]) -> tuple[ModelInfo, bool] | None:
+    """
+     Select Default Model And Thinking.
+    
+    Args:
+    models: Description.
+    
+    Returns:
+        Description.
+    """
     if not models:
         return None
     selected_model = models[0]
     capabilities = selected_model.capabilities
     thinking = "thinking" in capabilities or "always_thinking" in capabilities
     return selected_model, thinking
-
 
 def _apply_kimi_code_config(
     config: Config,
@@ -398,6 +559,19 @@ def _apply_kimi_code_config(
     thinking: bool,
     oauth_ref: OAuthRef,
 ) -> None:
+    """
+     Apply Kimi Code Config.
+    
+    Args:
+    config: Description.
+    models: Description.
+    selected_model: Description.
+    thinking: Description.
+    oauth_ref: Description.
+    
+    Returns:
+        Description.
+    """
     platform = get_platform_by_id(KIMI_CODE_PLATFORM_ID)
     if platform is None:
         raise OAuthError("Kimi Code platform not found.")
@@ -440,10 +614,19 @@ def _apply_kimi_code_config(
             oauth=oauth_ref,
         )
 
-
 async def login_kimi_code(
     config: Config, *, open_browser: bool = True
 ) -> AsyncIterator[OAuthEvent]:
+    """
+    Login Kimi Code.
+    
+    Args:
+    config: Description.
+    open_browser: Description.
+    
+    Returns:
+        Description.
+    """
     if not config.is_from_default_location:
         yield OAuthEvent(
             "error",
@@ -546,8 +729,16 @@ async def login_kimi_code(
     yield OAuthEvent("success", "Logged in successfully.")
     return
 
-
 async def logout_kimi_code(config: Config) -> AsyncIterator[OAuthEvent]:
+    """
+    Logout Kimi Code.
+    
+    Args:
+    config: Description.
+    
+    Returns:
+        Description.
+    """
     if not config.is_from_default_location:
         yield OAuthEvent(
             "error",
@@ -580,8 +771,10 @@ async def logout_kimi_code(config: Config) -> AsyncIterator[OAuthEvent]:
     yield OAuthEvent("success", "Logged out successfully.")
     return
 
-
 class OAuthManager:
+    """
+    OAuthManager class.
+    """
     def __init__(self, config: Config) -> None:
         self._config = config
         # Cache access tokens only; refresh tokens are always read from persisted storage.
@@ -782,7 +975,6 @@ class OAuthManager:
 
         assert isinstance(runtime.llm.chat_provider, Kimi), "Expected Kimi chat provider"
         runtime.llm.chat_provider.client.api_key = access_token
-
 
 if __name__ == "__main__":
     from rich import print

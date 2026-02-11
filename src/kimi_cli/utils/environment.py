@@ -1,14 +1,14 @@
 from __future__ import annotations
-
 import platform
 from dataclasses import dataclass
 from typing import Literal
-
 from kaos.path import KaosPath
-
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class Environment:
+    """
+    Environment class.
+    """
     os_kind: Literal["Windows", "Linux", "macOS"] | str
     os_arch: str
     os_version: str

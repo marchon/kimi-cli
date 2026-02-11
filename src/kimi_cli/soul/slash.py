@@ -1,13 +1,10 @@
 from __future__ import annotations
-
 import tempfile
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
-
 from kosong.message import Message
 from loguru import logger
-
 import kimi_cli.prompts as prompts
 from kimi_cli.soul import wire_send
 from kimi_cli.soul.agent import load_agents_md
@@ -16,10 +13,6 @@ from kimi_cli.soul.message import system
 from kimi_cli.utils.slashcmd import SlashCommandRegistry
 from kimi_cli.wire.types import StatusUpdate, TextPart
 
-if TYPE_CHECKING:
-    from kimi_cli.soul.kimisoul import KimiSoul
-
-type SoulSlashCmdFunc = Callable[[KimiSoul, str], None | Awaitable[None]]
 """
 A function that runs as a KimiSoul-level slash command.
 
@@ -27,8 +20,32 @@ Raises:
     Any exception that can be raised by `Soul.run`.
 """
 
+if TYPE_CHECKING:
+    from kimi_cli.soul.kimisoul import KimiSoul
+
+type SoulSlashCmdFunc = Callable[[KimiSoul, str], None | Awaitable[None]]
+
 registry = SlashCommandRegistry[SoulSlashCmdFunc]()
 
+@registry.command(aliases=["reset"])
+async def clear(soul: KimiSoul, args: str):
+    """Clear the context"""
+    logger.info("Running `/clear`")
+    await soul.context.clear()
+    wire_send(TextPart(text="The context has been cleared."))
+    wire_send(StatusUpdate(context_usage=soul.status.context_usage))
+
+@registry.command
+async def compact(soul: KimiSoul, args: str):
+    """Compact the context"""
+    if soul.context.n_checkpoints == 0:
+        wire_send(TextPart(text="The context is empty."))
+        return
+
+    logger.info("Running `/compact`")
+    await soul.compact_context()
+    wire_send(TextPart(text="The context has been compacted."))
+    wire_send(StatusUpdate(context_usage=soul.status.context_usage))
 
 @registry.command
 async def init(soul: KimiSoul, args: str):
@@ -47,29 +64,6 @@ async def init(soul: KimiSoul, args: str):
         f"Latest AGENTS.md file content:\n{agents_md}"
     )
     await soul.context.append_message(Message(role="user", content=[system_message]))
-
-
-@registry.command
-async def compact(soul: KimiSoul, args: str):
-    """Compact the context"""
-    if soul.context.n_checkpoints == 0:
-        wire_send(TextPart(text="The context is empty."))
-        return
-
-    logger.info("Running `/compact`")
-    await soul.compact_context()
-    wire_send(TextPart(text="The context has been compacted."))
-    wire_send(StatusUpdate(context_usage=soul.status.context_usage))
-
-
-@registry.command(aliases=["reset"])
-async def clear(soul: KimiSoul, args: str):
-    """Clear the context"""
-    logger.info("Running `/clear`")
-    await soul.context.clear()
-    wire_send(TextPart(text="The context has been cleared."))
-    wire_send(StatusUpdate(context_usage=soul.status.context_usage))
-
 
 @registry.command
 async def yolo(soul: KimiSoul, args: str):

@@ -1,0 +1,27 @@
+# Sphinx build directory
+_build/
+
+# Generated API docs (if using sphinx-apidoc)
+api/generated/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

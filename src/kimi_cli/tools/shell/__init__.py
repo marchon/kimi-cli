@@ -2,12 +2,10 @@ import asyncio
 from collections.abc import Callable
 from pathlib import Path
 from typing import override
-
 import kaos
 from kaos import AsyncReadable
 from kosong.tooling import CallableTool2, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul.approval import Approval
 from kimi_cli.tools.display import ShellDisplayBlock
 from kimi_cli.tools.utils import ToolRejectedError, ToolResultBuilder, load_desc
@@ -16,8 +14,10 @@ from kimi_cli.utils.subprocess_env import get_clean_env
 
 MAX_TIMEOUT = 5 * 60
 
-
 class Params(BaseModel):
+    """
+    Params class.
+    """
     command: str = Field(description="The bash command to execute.")
     timeout: int = Field(
         description=(
@@ -29,8 +29,10 @@ class Params(BaseModel):
         le=MAX_TIMEOUT,
     )
 
-
 class Shell(CallableTool2[Params]):
+    """
+    Shell class.
+    """
     name: str = "Shell"
     params: type[Params] = Params
 

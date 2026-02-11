@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import os
 import platform
@@ -10,31 +9,30 @@ import tarfile
 import tempfile
 from enum import Enum, auto
 from pathlib import Path
-
 import aiohttp
-
 from kimi_cli.share import get_share_dir
 from kimi_cli.ui.shell.console import console
 from kimi_cli.utils.aiohttp import new_client_session
 from kimi_cli.utils.logging import logger
 
 BASE_URL = "https://cdn.kimi.com/binaries/kimi-cli"
-LATEST_VERSION_URL = f"{BASE_URL}/latest"
+
 INSTALL_DIR = Path.home() / ".local" / "bin"
 
+LATEST_VERSION_FILE = get_share_dir() / "latest_version.txt"
 
-class UpdateResult(Enum):
-    UPDATE_AVAILABLE = auto()
-    UPDATED = auto()
-    UP_TO_DATE = auto()
-    FAILED = auto()
-    UNSUPPORTED = auto()
-
-
-_UPDATE_LOCK = asyncio.Lock()
-
+LATEST_VERSION_URL = f"{BASE_URL}/latest"
 
 def semver_tuple(version: str) -> tuple[int, int, int]:
+    """
+    Semver Tuple.
+    
+    Args:
+    version: Description.
+    
+    Returns:
+        Description.
+    """
     v = version.strip()
     if v.startswith("v"):
         v = v[1:]
@@ -46,8 +44,38 @@ def semver_tuple(version: str) -> tuple[int, int, int]:
     patch = int(match.group(3) or 0)
     return (major, minor, patch)
 
+class UpdateResult(Enum):
+    """
+    UpdateResult class.
+    """
+    UPDATE_AVAILABLE = auto()
+    UPDATED = auto()
+    UP_TO_DATE = auto()
+    FAILED = auto()
+    UNSUPPORTED = auto()
+
+# Internal Function Index:
+#
+#   [func] _UPDATE_LOCK
+#   [func] _detect_target
+#   [func] _get_latest_version
+#   [func] _do_update
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 def _detect_target() -> str | None:
+    """
+     Detect Target.
+    """
     sys_name = platform.system()
     mach = platform.machine()
     if mach in ("x86_64", "amd64", "AMD64"):
@@ -66,8 +94,18 @@ def _detect_target() -> str | None:
         return None
     return f"{arch}-{os_name}"
 
+_UPDATE_LOCK = asyncio.Lock()
 
 async def _get_latest_version(session: aiohttp.ClientSession) -> str | None:
+    """
+     Get Latest Version.
+    
+    Args:
+    session: Description.
+    
+    Returns:
+        Description.
+    """
     try:
         async with session.get(LATEST_VERSION_URL) as resp:
             resp.raise_for_status()
@@ -77,16 +115,31 @@ async def _get_latest_version(session: aiohttp.ClientSession) -> str | None:
         logger.exception("Failed to get latest version:")
         return None
 
-
 async def do_update(*, print: bool = True, check_only: bool = False) -> UpdateResult:
+    """
+    Do Update.
+    
+    Args:
+    print: Description.
+    check_only: Description.
+    
+    Returns:
+        Description.
+    """
     async with _UPDATE_LOCK:
         return await _do_update(print=print, check_only=check_only)
 
-
-LATEST_VERSION_FILE = get_share_dir() / "latest_version.txt"
-
-
 async def _do_update(*, print: bool, check_only: bool) -> UpdateResult:
+    """
+     Do Update.
+    
+    Args:
+    print: Description.
+    check_only: Description.
+    
+    Returns:
+        Description.
+    """
     from kimi_cli.constant import VERSION as current_version
 
     def _print(message: str) -> None:
@@ -198,15 +251,3 @@ async def _do_update(*, print: bool, check_only: bool) -> UpdateResult:
     _print("[green]Updated successfully![/green]")
     _print("[yellow]Restart Kimi Code CLI to use the new version.[/yellow]")
     return UpdateResult.UPDATED
-
-
-# @meta_command
-# async def update(app: "Shell", args: list[str]):
-#     """Check for updates"""
-#     await do_update(print=True)
-
-
-# @meta_command(name="check-update")
-# async def check_update(app: "Shell", args: list[str]):
-#     """Check for updates"""
-#     await do_update(print=True, check_only=True)

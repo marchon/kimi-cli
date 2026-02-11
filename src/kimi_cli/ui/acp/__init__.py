@@ -1,20 +1,34 @@
 from __future__ import annotations
-
 from typing import Any, NoReturn
-
 import acp
-
 from kimi_cli.acp.types import ACPContentBlock, MCPServer
 from kimi_cli.soul import Soul
 from kimi_cli.utils.logging import logger
+
+# Internal Function Index:
+#
+#   [func] _DEPRECATED_MESSAGE
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
 
 _DEPRECATED_MESSAGE = (
     "`kimi --acp` is deprecated. "
     "Update your ACP client settings to use `kimi acp` without any flags or options."
 )
 
-
 class ACPServerSingleSession:
+    """
+    ACPServerSingleSession class.
+    """
     def __init__(self, soul: Soul):
         self.soul = soul
 
@@ -75,7 +89,6 @@ class ACPServerSingleSession:
 
     async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
         self._raise()
-
 
 class ACP:
     """ACP server using the official acp library."""

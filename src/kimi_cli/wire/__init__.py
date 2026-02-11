@@ -1,11 +1,8 @@
 from __future__ import annotations
-
 import asyncio
 import contextlib
 import copy
-
 from kosong.message import MergeableMixin
-
 from kimi_cli.utils.aioqueue import Queue, QueueShutDown
 from kimi_cli.utils.broadcast import BroadcastQueue
 from kimi_cli.utils.logging import logger
@@ -14,54 +11,43 @@ from kimi_cli.wire.types import ContentPart, ToolCallPart, WireMessage, is_wire_
 
 WireMessageQueue = BroadcastQueue[WireMessage]
 
+# Internal Function Index:
+#
+#   [class] _WireRecorder
 
-class Wire:
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+class _WireRecorder:
     """
-    A spmc channel for communication between the soul and the UI during a soul run.
+    _WireRecorder class.
     """
-
-    def __init__(self, *, file_backend: WireFile | None = None):
-        self._raw_queue = WireMessageQueue()
-        self._merged_queue = WireMessageQueue()
-
-        self._soul_side = WireSoulSide(self._raw_queue, self._merged_queue)
-
-        if file_backend is not None:
-            # record all complete Wire messages to the file backend
-            self._recorder = _WireRecorder(file_backend, self._merged_queue.subscribe())
-        else:
-            self._recorder = None
-
-    @property
-    def soul_side(self) -> WireSoulSide:
-        return self._soul_side
-
-    def ui_side(self, *, merge: bool) -> WireUISide:
-        """
-        Create a UI side of the `Wire`.
-
-        Args:
-            merge: Whether to merge `Wire` messages as much as possible.
-        """
-        if merge:
-            return WireUISide(self._merged_queue.subscribe())
-        else:
-            return WireUISide(self._raw_queue.subscribe())
-
-    def shutdown(self) -> None:
-        self.soul_side.flush()
-        logger.debug("Shutting down wire")
-        self._raw_queue.shutdown()
-        self._merged_queue.shutdown()
+    def __init__(self, wire_file: WireFile, queue: Queue[WireMessage]) -> None:
+        self._wire_file = wire_file
+        self._task = asyncio.create_task(self._consume_loop(queue))
 
     async def join(self) -> None:
-        if self._recorder is None:
-            return
-        try:
-            await self._recorder.join()
-        except Exception:
-            logger.exception("Wire recorder failed to flush:")
+        with contextlib.suppress(asyncio.CancelledError):
+            await self._task
 
+    async def _consume_loop(self, queue: Queue[WireMessage]) -> None:
+        while True:
+            try:
+                msg = await queue.get()
+                await self._record(msg)
+            except QueueShutDown:
+                break
+
+    async def _record(self, msg: WireMessage) -> None:
+        await self._wire_file.append_message(msg)
 
 class WireSoulSide:
     """
@@ -111,7 +97,6 @@ class WireSoulSide:
         except QueueShutDown:
             logger.info("Failed to send merged wire message, queue is shut down: {msg}", msg=msg)
 
-
 class WireUISide:
     """
     The UI side of a `Wire`.
@@ -126,23 +111,49 @@ class WireUISide:
             logger.debug("Receiving wire message: {msg}", msg=msg)
         return msg
 
+class Wire:
+    """
+    A spmc channel for communication between the soul and the UI during a soul run.
+    """
 
-class _WireRecorder:
-    def __init__(self, wire_file: WireFile, queue: Queue[WireMessage]) -> None:
-        self._wire_file = wire_file
-        self._task = asyncio.create_task(self._consume_loop(queue))
+    def __init__(self, *, file_backend: WireFile | None = None):
+        self._raw_queue = WireMessageQueue()
+        self._merged_queue = WireMessageQueue()
+
+        self._soul_side = WireSoulSide(self._raw_queue, self._merged_queue)
+
+        if file_backend is not None:
+            # record all complete Wire messages to the file backend
+            self._recorder = _WireRecorder(file_backend, self._merged_queue.subscribe())
+        else:
+            self._recorder = None
+
+    @property
+    def soul_side(self) -> WireSoulSide:
+        return self._soul_side
+
+    def ui_side(self, *, merge: bool) -> WireUISide:
+        """
+        Create a UI side of the `Wire`.
+
+        Args:
+            merge: Whether to merge `Wire` messages as much as possible.
+        """
+        if merge:
+            return WireUISide(self._merged_queue.subscribe())
+        else:
+            return WireUISide(self._raw_queue.subscribe())
+
+    def shutdown(self) -> None:
+        self.soul_side.flush()
+        logger.debug("Shutting down wire")
+        self._raw_queue.shutdown()
+        self._merged_queue.shutdown()
 
     async def join(self) -> None:
-        with contextlib.suppress(asyncio.CancelledError):
-            await self._task
-
-    async def _consume_loop(self, queue: Queue[WireMessage]) -> None:
-        while True:
-            try:
-                msg = await queue.get()
-                await self._record(msg)
-            except QueueShutDown:
-                break
-
-    async def _record(self, msg: WireMessage) -> None:
-        await self._wire_file.append_message(msg)
+        if self._recorder is None:
+            return
+        try:
+            await self._recorder.join()
+        except Exception:
+            logger.exception("Wire recorder failed to flush:")

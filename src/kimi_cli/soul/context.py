@@ -1,19 +1,18 @@
 from __future__ import annotations
-
 import json
 from collections.abc import Sequence
 from pathlib import Path
-
 import aiofiles
 import aiofiles.os
 from kosong.message import Message
-
 from kimi_cli.soul.message import system
 from kimi_cli.utils.logging import logger
 from kimi_cli.utils.path import next_available_rotation
 
-
 class Context:
+    """
+    Context class.
+    """
     def __init__(self, file_backend: Path):
         self._file_backend = file_backend
         self._history: list[Message] = []

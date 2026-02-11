@@ -1,7 +1,4 @@
-"""Session process management for Kimi CLI web interface."""
-
 from __future__ import annotations
-
 import asyncio
 import base64
 import contextlib
@@ -15,14 +12,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
-
 from kosong.message import ContentPart, ImageURLPart, TextPart
 from loguru import logger
 from PIL import Image
 from PIL.Image import Image as PILImage
 from pydantic import TypeAdapter
 from starlette.websockets import WebSocket, WebSocketState
-
 from kimi_cli.config import load_config
 from kimi_cli.llm import ModelCapability
 from kimi_cli.utils.subprocess_env import get_clean_env
@@ -48,8 +43,16 @@ from kimi_cli.wire.jsonrpc import (
 )
 from kimi_cli.wire.serde import deserialize_wire_message
 
+"""Session process management for Kimi CLI web interface."""
+
 JSONRPCOutMessageAdapter = TypeAdapter[JSONRPCOutMessage](JSONRPCOutMessage)
 
+@dataclass(slots=True)
+class RestartWorkersSummary:
+    """Summary of a restart_running_workers operation."""
+
+    restarted_session_ids: list[UUID]
+    skipped_busy_session_ids: list[UUID]
 
 class SessionProcess:
     """Manages a single session's KimiCLI subprocess.
@@ -655,7 +658,6 @@ class SessionProcess:
         process.stdin.write((message + "\n").encode("utf-8"))
         await process.stdin.drain()
 
-
 class KimiCLIRunner:
     """Manages multiple session processes."""
 
@@ -735,11 +737,3 @@ class KimiCLIRunner:
             restarted_session_ids=restarted,
             skipped_busy_session_ids=skipped_busy,
         )
-
-
-@dataclass(slots=True)
-class RestartWorkersSummary:
-    """Summary of a restart_running_workers operation."""
-
-    restarted_session_ids: list[UUID]
-    skipped_busy_session_ids: list[UUID]

@@ -1,20 +1,20 @@
-"""Glob tool implementation."""
-
 from pathlib import Path
 from typing import override
-
 from kaos.path import KaosPath
 from kosong.tooling import CallableTool2, ToolError, ToolOk, ToolReturnValue
 from pydantic import BaseModel, Field
-
 from kimi_cli.soul.agent import BuiltinSystemPromptArgs
 from kimi_cli.tools.utils import load_desc
 from kimi_cli.utils.path import is_within_directory, list_directory
 
+"""Glob tool implementation."""
+
 MAX_MATCHES = 1000
 
-
 class Params(BaseModel):
+    """
+    Params class.
+    """
     pattern: str = Field(description=("Glob pattern to match files/directories."))
     directory: str | None = Field(
         description=(
@@ -27,8 +27,10 @@ class Params(BaseModel):
         default=True,
     )
 
-
 class Glob(CallableTool2[Params]):
+    """
+    Glob class.
+    """
     name: str = "Glob"
     description: str = load_desc(
         Path(__file__).parent / "glob.md",

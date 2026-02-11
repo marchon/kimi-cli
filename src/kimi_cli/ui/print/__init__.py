@@ -1,15 +1,12 @@
 from __future__ import annotations
-
 import asyncio
 import json
 import sys
 from functools import partial
 from pathlib import Path
-
 from kosong.chat_provider import ChatProviderError
 from kosong.message import Message
 from rich import print
-
 from kimi_cli.cli import InputFormat, OutputFormat
 from kimi_cli.soul import (
     LLMNotSet,
@@ -23,7 +20,6 @@ from kimi_cli.soul.kimisoul import KimiSoul
 from kimi_cli.ui.print.visualize import visualize
 from kimi_cli.utils.logging import logger
 from kimi_cli.utils.signals import install_sigint_handler
-
 
 class Print:
     """

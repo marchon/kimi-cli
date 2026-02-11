@@ -1,13 +1,37 @@
 from __future__ import annotations
-
 from pathlib import Path
 from typing import NamedTuple
 
+def format_release_notes(changelog: dict[str, ReleaseEntry], include_lib_changes: bool) -> str:
+    """
+    Format Release Notes.
+    
+    Args:
+    changelog: Description.
+    include_lib_changes: Description.
+    
+    Returns:
+        Description.
+    """
+    parts: list[str] = []
+    for ver, entry in changelog.items():
+        s = f"[bold]{ver}[/bold]"
+        if entry.description:
+            s += f": {entry.description}"
+        if entry.entries:
+            for it in entry.entries:
+                if it.lower().startswith("lib:") and not include_lib_changes:
+                    continue
+                s += "\n[markdown.item.bullet]• [/]" + it
+        parts.append(s + "\n")
+    return "\n".join(parts).strip()
 
 class ReleaseEntry(NamedTuple):
+    """
+    ReleaseEntry class.
+    """
     description: str
     entries: list[str]
-
 
 def parse_changelog(md_text: str) -> dict[str, ReleaseEntry]:
     """Parse a subset of Keep a Changelog-style markdown into a map:
@@ -86,22 +110,6 @@ def parse_changelog(md_text: str) -> dict[str, ReleaseEntry]:
     # Final flush
     commit()
     return result
-
-
-def format_release_notes(changelog: dict[str, ReleaseEntry], include_lib_changes: bool) -> str:
-    parts: list[str] = []
-    for ver, entry in changelog.items():
-        s = f"[bold]{ver}[/bold]"
-        if entry.description:
-            s += f": {entry.description}"
-        if entry.entries:
-            for it in entry.entries:
-                if it.lower().startswith("lib:") and not include_lib_changes:
-                    continue
-                s += "\n[markdown.item.bullet]• [/]" + it
-        parts.append(s + "\n")
-    return "\n".join(parts).strip()
-
 
 CHANGELOG = parse_changelog(
     (Path(__file__).parent.parent / "CHANGELOG.md").read_text(encoding="utf-8")

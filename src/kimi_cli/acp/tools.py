@@ -1,11 +1,9 @@
 import asyncio
 from contextlib import suppress
-
 import acp
 from kaos import get_current_kaos
 from kaos.local import local_kaos
 from kosong.tooling import CallableTool2, ToolReturnValue
-
 from kimi_cli.soul.agent import Runtime
 from kimi_cli.soul.approval import Approval
 from kimi_cli.soul.toolset import KimiToolset
@@ -14,6 +12,10 @@ from kimi_cli.tools.shell import Shell
 from kimi_cli.tools.utils import ToolRejectedError, ToolResultBuilder
 from kimi_cli.wire.types import DisplayBlock
 
+class HideOutputDisplayBlock(DisplayBlock):
+    """A special DisplayBlock that indicates output should be hidden in ACP clients."""
+
+    type: str = "acp/hide_output"
 
 def replace_tools(
     client_capabilities: acp.schema.ClientCapabilities,
@@ -22,6 +24,19 @@ def replace_tools(
     toolset: KimiToolset,
     runtime: Runtime,
 ) -> None:
+    """
+    Replace Tools.
+    
+    Args:
+    client_capabilities: Description.
+    acp_conn: Description.
+    acp_session_id: Description.
+    toolset: Description.
+    runtime: Description.
+    
+    Returns:
+        Description.
+    """
     current_kaos = get_current_kaos().name
     if current_kaos not in (local_kaos.name, "acp"):
         # Only replace tools when running locally or under ACPKaos.
@@ -38,14 +53,10 @@ def replace_tools(
             )
         )
 
-
-class HideOutputDisplayBlock(DisplayBlock):
-    """A special DisplayBlock that indicates output should be hidden in ACP clients."""
-
-    type: str = "acp/hide_output"
-
-
 class Terminal(CallableTool2[ShellParams]):
+    """
+    Terminal class.
+    """
     def __init__(
         self,
         shell_tool: Shell,

@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from typing import Any
-
 from pygments.token import (
     Comment,
     Generic,
@@ -24,7 +22,6 @@ from pygments.token import (
 from rich.style import Style
 from rich.syntax import ANSISyntaxTheme, Syntax, SyntaxTheme
 
-KIMI_ANSI_THEME_NAME = "kimi-ansi"
 KIMI_ANSI_THEME = ANSISyntaxTheme(
     {
         PygmentsToken: Style(color="default"),
@@ -76,19 +73,16 @@ KIMI_ANSI_THEME = ANSISyntaxTheme(
     }
 )
 
-
-def resolve_code_theme(theme: str | SyntaxTheme) -> str | SyntaxTheme:
-    if isinstance(theme, str) and theme.lower() == KIMI_ANSI_THEME_NAME:
-        return KIMI_ANSI_THEME
-    return theme
-
+KIMI_ANSI_THEME_NAME = "kimi-ansi"
 
 class KimiSyntax(Syntax):
+    """
+    KimiSyntax class.
+    """
     def __init__(self, code: str, lexer: str, **kwargs: Any) -> None:
         if "theme" not in kwargs or kwargs["theme"] is None:
             kwargs["theme"] = KIMI_ANSI_THEME
         super().__init__(code, lexer, **kwargs)
-
 
 if __name__ == "__main__":
     from rich.console import Console
@@ -111,3 +105,17 @@ if __name__ == "__main__":
             console.print()
         console.print(Text(f"[{title}]", style="bold"))
         console.print(KimiSyntax(code, lexer))
+
+def resolve_code_theme(theme: str | SyntaxTheme) -> str | SyntaxTheme:
+    """
+    Resolve Code Theme.
+    
+    Args:
+    theme: Description.
+    
+    Returns:
+        Description.
+    """
+    if isinstance(theme, str) and theme.lower() == KIMI_ANSI_THEME_NAME:
+        return KIMI_ANSI_THEME
+    return theme

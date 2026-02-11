@@ -1,3 +1,15 @@
+from __future__ import annotations
+import time
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from uuid import UUID
+from pydantic import BaseModel, ConfigDict, Field
+from kimi_cli.metadata import WorkDirMeta, load_metadata
+from kimi_cli.session import Session as KimiCLISession
+from kimi_cli.web.models import Session
+from kimi_cli.wire.file import WireFile
+
 """Session storage with simple in-memory caching for web UI.
 
 ## Design Philosophy
@@ -16,33 +28,11 @@ This design works well when:
 - Occasional staleness (up to CACHE_TTL) from external changes is acceptable
 """
 
-from __future__ import annotations
-
-import time
-from dataclasses import dataclass
-from datetime import UTC, datetime
-from pathlib import Path
-from uuid import UUID
-
-from pydantic import BaseModel, ConfigDict, Field
-
-from kimi_cli.metadata import WorkDirMeta, load_metadata
-from kimi_cli.session import Session as KimiCLISession
-from kimi_cli.web.models import Session
-from kimi_cli.wire.file import WireFile
-
-# Cache configuration
-CACHE_TTL = 5.0  # seconds - balance between freshness and performance
-SESSION_METADATA_FILENAME = "metadata.json"
-
-# Auto-archive configuration
 AUTO_ARCHIVE_DAYS = 15  # Sessions older than this will be auto-archived
 
-_sessions_cache: list[JointSession] | None = None
-_cache_timestamp: float = 0.0
-_sessions_index_cache: list[SessionIndexEntry] | None = None
-_index_cache_timestamp: float = 0.0
+AUTO_ARCHIVE_INTERVAL = 300.0  # Run auto-archive at most once every 5 minutes
 
+CACHE_TTL = 5.0  # seconds - balance between freshness and performance
 
 def invalidate_sessions_cache() -> None:
     """Clear the sessions cache.
@@ -56,7 +46,6 @@ def invalidate_sessions_cache() -> None:
     _sessions_index_cache = None
     _index_cache_timestamp = 0.0
 
-
 class JointSession(Session):
     """Combined session model with both web UI and kimi-cli session data."""
 
@@ -64,6 +53,21 @@ class JointSession(Session):
 
     kimi_cli_session: KimiCLISession = Field(exclude=True)
 
+SESSION_METADATA_FILENAME = "metadata.json"
+
+@dataclass(slots=True)
+class SessionIndexEntry:
+    """
+    SessionIndexEntry class.
+    """
+    session_id: UUID
+    session_dir: Path
+    context_file: Path
+    work_dir: str
+    work_dir_meta: WorkDirMeta
+    last_updated: datetime
+    title: str
+    metadata: SessionMetadata | None
 
 class SessionMetadata(BaseModel):
     """Session metadata stored in metadata.json."""
@@ -77,18 +81,42 @@ class SessionMetadata(BaseModel):
     archived_at: float | None = None
     auto_archive_exempt: bool = False  # True if user manually unarchived, exempt from auto-archive
 
+# Internal Function Index:
+#
+#   [func] _sessions_cache
+#   [func] _cache_timestamp
+#   [func] _sessions_index_cache
+#   [func] _index_cache_timestamp
+#   [func] _derive_title_from_wire
+#   [func] _iter_session_dirs
+#   [func] _ensure_title
+#   [func] _build_kimi_session
+#   [func] _build_joint_session
+#   [func] _should_auto_archive
+#   [func] _build_sessions_index
+#   [func] _last_auto_archive_time
+#   [func] _load_sessions_index_cached
 
-@dataclass(slots=True)
-class SessionIndexEntry:
-    session_id: UUID
-    session_dir: Path
-    context_file: Path
-    work_dir: str
-    work_dir_meta: WorkDirMeta
-    last_updated: datetime
-    title: str
-    metadata: SessionMetadata | None
 
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_cache_timestamp: float = 0.0
+
+_index_cache_timestamp: float = 0.0
+
+_last_auto_archive_time: float = 0.0
+
+_sessions_cache: list[JointSession] | None = None
+
+_sessions_index_cache: list[SessionIndexEntry] | None = None
 
 def load_session_metadata(session_dir: Path, session_id: str) -> SessionMetadata:
     """Load session metadata from metadata.json, or create default if not exists."""
@@ -105,7 +133,6 @@ def load_session_metadata(session_dir: Path, session_id: str) -> SessionMetadata
     except Exception:
         return SessionMetadata(session_id=session_id)
 
-
 def save_session_metadata(session_dir: Path, metadata: SessionMetadata) -> None:
     """Save session metadata to metadata.json."""
     if not session_dir.exists():
@@ -121,8 +148,16 @@ def save_session_metadata(session_dir: Path, metadata: SessionMetadata) -> None:
     except Exception:
         pass
 
-
 def _derive_title_from_wire(session_dir: Path) -> str:
+    """
+     Derive Title From Wire.
+    
+    Args:
+    session_dir: Description.
+    
+    Returns:
+        Description.
+    """
     wire_file = session_dir / "wire.jsonl"
     if not wire_file.exists():
         return "Untitled"
@@ -153,8 +188,16 @@ def _derive_title_from_wire(session_dir: Path) -> str:
         pass
     return "Untitled"
 
-
 def _iter_session_dirs(wd: WorkDirMeta) -> list[tuple[Path, Path]]:
+    """
+     Iter Session Dirs.
+    
+    Args:
+    wd: Description.
+    
+    Returns:
+        Description.
+    """
     session_dirs: list[tuple[Path, Path]] = []
 
     # Latest sessions
@@ -171,7 +214,6 @@ def _iter_session_dirs(wd: WorkDirMeta) -> list[tuple[Path, Path]]:
         session_dirs.append((session_dir, context_file))
 
     return session_dirs
-
 
 def _ensure_title(entry: SessionIndexEntry, *, refresh: bool) -> None:
     """Ensure session has a title, updating metadata if needed.
@@ -219,8 +261,16 @@ def _ensure_title(entry: SessionIndexEntry, *, refresh: bool) -> None:
     save_session_metadata(entry.session_dir, metadata)
     entry.metadata = metadata
 
-
 def _build_kimi_session(entry: SessionIndexEntry) -> KimiCLISession:
+    """
+     Build Kimi Session.
+    
+    Args:
+    entry: Description.
+    
+    Returns:
+        Description.
+    """
     from kaos.path import KaosPath
 
     return KimiCLISession(
@@ -233,8 +283,16 @@ def _build_kimi_session(entry: SessionIndexEntry) -> KimiCLISession:
         updated_at=entry.last_updated.timestamp(),
     )
 
-
 def _build_joint_session(entry: SessionIndexEntry) -> JointSession:
+    """
+     Build Joint Session.
+    
+    Args:
+    entry: Description.
+    
+    Returns:
+        Description.
+    """
     kimi_session = _build_kimi_session(entry)
     archived = entry.metadata.archived if entry.metadata else False
     return JointSession(
@@ -248,7 +306,6 @@ def _build_joint_session(entry: SessionIndexEntry) -> JointSession:
         kimi_cli_session=kimi_session,
         archived=archived,
     )
-
 
 def _should_auto_archive(last_updated: datetime, session_metadata: SessionMetadata) -> bool:
     """Check if a session should be auto-archived based on age and exemption status."""
@@ -264,7 +321,6 @@ def _should_auto_archive(last_updated: datetime, session_metadata: SessionMetada
     now = datetime.now(tz=UTC)
     age_days = (now - last_updated).days
     return age_days >= AUTO_ARCHIVE_DAYS
-
 
 def _build_sessions_index() -> list[SessionIndexEntry]:
     """Build the sessions index from disk.
@@ -305,12 +361,6 @@ def _build_sessions_index() -> list[SessionIndexEntry]:
 
     entries.sort(key=lambda x: (x.last_updated, str(x.session_id)), reverse=True)
     return entries
-
-
-# Track when auto-archive was last run to avoid running too frequently
-_last_auto_archive_time: float = 0.0
-AUTO_ARCHIVE_INTERVAL = 300.0  # Run auto-archive at most once every 5 minutes
-
 
 def run_auto_archive() -> int:
     """Run auto-archive on old sessions.
@@ -353,8 +403,10 @@ def run_auto_archive() -> int:
 
     return archived_count
 
-
 def _load_sessions_index_cached() -> list[SessionIndexEntry]:
+    """
+     Load Sessions Index Cached.
+    """
     global _sessions_index_cache, _index_cache_timestamp
 
     now = time.time()
@@ -364,7 +416,6 @@ def _load_sessions_index_cached() -> list[SessionIndexEntry]:
     _sessions_index_cache = _build_sessions_index()
     _index_cache_timestamp = now
     return _sessions_index_cache
-
 
 def load_all_sessions() -> list[JointSession]:
     """Load all sessions from all work directories."""
@@ -377,7 +428,6 @@ def load_all_sessions() -> list[JointSession]:
 
     sessions.sort(key=lambda x: x.last_updated, reverse=True)
     return sessions
-
 
 def load_all_sessions_cached() -> list[JointSession]:
     """Cached version of load_all_sessions().
@@ -397,7 +447,6 @@ def load_all_sessions_cached() -> list[JointSession]:
     _sessions_cache = load_all_sessions()
     _cache_timestamp = now
     return _sessions_cache
-
 
 def load_sessions_page(
     *,
@@ -452,7 +501,6 @@ def load_sessions_page(
 
     return [_build_joint_session(entry) for entry in page_entries]
 
-
 def load_session_by_id(id: UUID) -> JointSession | None:
     """Load a session by ID.
 
@@ -504,7 +552,6 @@ def load_session_by_id(id: UUID) -> JointSession | None:
             return _build_joint_session(entry)
 
     return None
-
 
 if __name__ == "__main__":
     start_time = time.time()

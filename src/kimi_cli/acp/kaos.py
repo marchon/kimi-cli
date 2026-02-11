@@ -1,145 +1,12 @@
 from __future__ import annotations
-
 import asyncio
 from collections.abc import AsyncGenerator, Iterable, Mapping
 from contextlib import suppress
 from typing import Literal
-
 import acp
 from kaos import AsyncReadable, AsyncWritable, Kaos, KaosProcess, StatResult, StrOrKaosPath
 from kaos.local import local_kaos
 from kaos.path import KaosPath
-
-_DEFAULT_TERMINAL_OUTPUT_LIMIT = 50_000
-_DEFAULT_POLL_INTERVAL = 0.2
-_TRUNCATION_NOTICE = "[acp output truncated]\n"
-
-
-class _NullWritable:
-    def can_write_eof(self) -> bool:
-        return False
-
-    def close(self) -> None:
-        return None
-
-    async def drain(self) -> None:
-        return None
-
-    def is_closing(self) -> bool:
-        return False
-
-    async def wait_closed(self) -> None:
-        return None
-
-    def write(self, data: bytes) -> None:
-        return None
-
-    def writelines(self, data: Iterable[bytes], /) -> None:
-        return None
-
-    def write_eof(self) -> None:
-        return None
-
-
-class ACPProcess:
-    """KAOS process adapter for ACP terminal execution."""
-
-    def __init__(
-        self,
-        terminal: acp.TerminalHandle,
-        *,
-        poll_interval: float = _DEFAULT_POLL_INTERVAL,
-    ) -> None:
-        self._terminal = terminal
-        self._poll_interval = poll_interval
-        self._stdin = _NullWritable()
-        self._stdout = asyncio.StreamReader()
-        self._stderr = asyncio.StreamReader()
-        self.stdin: AsyncWritable = self._stdin
-        self.stdout: AsyncReadable = self._stdout
-        # ACP does not expose stderr separately; keep stderr empty.
-        self.stderr: AsyncReadable = self._stderr
-        self._returncode: int | None = None
-        self._last_output = ""
-        self._truncation_noted = False
-        self._exit_future: asyncio.Future[int] = asyncio.get_running_loop().create_future()
-        self._poll_task = asyncio.create_task(self._poll_output())
-
-    @property
-    def pid(self) -> int:
-        return -1
-
-    @property
-    def returncode(self) -> int | None:
-        return self._returncode
-
-    async def wait(self) -> int:
-        return await self._exit_future
-
-    async def kill(self) -> None:
-        await self._terminal.kill()
-
-    def _feed_output(self, output_response: acp.schema.TerminalOutputResponse) -> None:
-        output = output_response.output
-        reset = output_response.truncated or (
-            self._last_output and not output.startswith(self._last_output)
-        )
-        if reset and self._last_output and not self._truncation_noted:
-            self._stdout.feed_data(_TRUNCATION_NOTICE.encode("utf-8"))
-            self._truncation_noted = True
-
-        delta = output if reset else output[len(self._last_output) :]
-        if delta:
-            self._stdout.feed_data(delta.encode("utf-8", "replace"))
-        self._last_output = output
-
-    @staticmethod
-    def _normalize_exit_code(exit_code: int | None) -> int:
-        return 1 if exit_code is None else exit_code
-
-    async def _poll_output(self) -> None:
-        exit_task = asyncio.create_task(self._terminal.wait_for_exit())
-        exit_code: int | None = None
-        try:
-            while True:
-                if exit_task.done():
-                    exit_response = exit_task.result()
-                    exit_code = exit_response.exit_code
-                    break
-
-                output_response = await self._terminal.current_output()
-                self._feed_output(output_response)
-                if output_response.exit_status:
-                    exit_code = output_response.exit_status.exit_code
-                    try:
-                        exit_response = await exit_task
-                        exit_code = exit_response.exit_code or exit_code
-                    except Exception:
-                        pass
-                    break
-
-                await asyncio.sleep(self._poll_interval)
-
-            final_output = await self._terminal.current_output()
-            self._feed_output(final_output)
-        except Exception as exc:
-            error_note = f"[acp terminal error] {exc}\n"
-            self._stdout.feed_data(error_note.encode("utf-8", "replace"))
-            if exit_code is None:
-                exit_code = 1
-        finally:
-            if not exit_task.done():
-                exit_task.cancel()
-                with suppress(Exception):
-                    await exit_task
-            self._returncode = self._normalize_exit_code(exit_code)
-            self._stdout.feed_eof()
-            self._stderr.feed_eof()
-            if not self._exit_future.done():
-                self._exit_future.set_result(self._returncode)
-            with suppress(Exception):
-                await self._terminal.release()
-
 
 class ACPKaos:
     """KAOS backend that routes supported operations through ACP."""
@@ -268,3 +135,154 @@ class ACPKaos:
     def _abs_path(self, path: StrOrKaosPath) -> str:
         kaos_path = path if isinstance(path, KaosPath) else KaosPath(path)
         return str(kaos_path.canonical())
+
+# Internal Function Index:
+#
+#   [func] _DEFAULT_TERMINAL_OUTPUT_LIMIT
+#   [func] _DEFAULT_POLL_INTERVAL
+#   [func] _TRUNCATION_NOTICE
+#   [class] _NullWritable
+
+
+
+
+# ==============================================================================
+# INTERNAL API
+# ==============================================================================
+
+# The following functions and classes are for internal use only and may change
+# without notice. They are organized alphabetically for easier navigation.
+
+
+_DEFAULT_POLL_INTERVAL = 0.2
+
+_DEFAULT_TERMINAL_OUTPUT_LIMIT = 50_000
+
+class _NullWritable:
+    """
+    _NullWritable class.
+    """
+    def can_write_eof(self) -> bool:
+        return False
+
+    def close(self) -> None:
+        return None
+
+    async def drain(self) -> None:
+        return None
+
+    def is_closing(self) -> bool:
+        return False
+
+    async def wait_closed(self) -> None:
+        return None
+
+    def write(self, data: bytes) -> None:
+        return None
+
+    def writelines(self, data: Iterable[bytes], /) -> None:
+        return None
+
+    def write_eof(self) -> None:
+        return None
+
+_TRUNCATION_NOTICE = "[acp output truncated]\n"
+
+class ACPProcess:
+    """KAOS process adapter for ACP terminal execution."""
+
+    def __init__(
+        self,
+        terminal: acp.TerminalHandle,
+        *,
+        poll_interval: float = _DEFAULT_POLL_INTERVAL,
+    ) -> None:
+        self._terminal = terminal
+        self._poll_interval = poll_interval
+        self._stdin = _NullWritable()
+        self._stdout = asyncio.StreamReader()
+        self._stderr = asyncio.StreamReader()
+        self.stdin: AsyncWritable = self._stdin
+        self.stdout: AsyncReadable = self._stdout
+        # ACP does not expose stderr separately; keep stderr empty.
+        self.stderr: AsyncReadable = self._stderr
+        self._returncode: int | None = None
+        self._last_output = ""
+        self._truncation_noted = False
+        self._exit_future: asyncio.Future[int] = asyncio.get_running_loop().create_future()
+        self._poll_task = asyncio.create_task(self._poll_output())
+
+    @property
+    def pid(self) -> int:
+        return -1
+
+    @property
+    def returncode(self) -> int | None:
+        return self._returncode
+
+    async def wait(self) -> int:
+        return await self._exit_future
+
+    async def kill(self) -> None:
+        await self._terminal.kill()
+
+    def _feed_output(self, output_response: acp.schema.TerminalOutputResponse) -> None:
+        output = output_response.output
+        reset = output_response.truncated or (
+            self._last_output and not output.startswith(self._last_output)
+        )
+        if reset and self._last_output and not self._truncation_noted:
+            self._stdout.feed_data(_TRUNCATION_NOTICE.encode("utf-8"))
+            self._truncation_noted = True
+
+        delta = output if reset else output[len(self._last_output) :]
+        if delta:
+            self._stdout.feed_data(delta.encode("utf-8", "replace"))
+        self._last_output = output
+
+    @staticmethod
+    def _normalize_exit_code(exit_code: int | None) -> int:
+        return 1 if exit_code is None else exit_code
+
+    async def _poll_output(self) -> None:
+        exit_task = asyncio.create_task(self._terminal.wait_for_exit())
+        exit_code: int | None = None
+        try:
+            while True:
+                if exit_task.done():
+                    exit_response = exit_task.result()
+                    exit_code = exit_response.exit_code
+                    break
+
+                output_response = await self._terminal.current_output()
+                self._feed_output(output_response)
+                if output_response.exit_status:
+                    exit_code = output_response.exit_status.exit_code
+                    try:
+                        exit_response = await exit_task
+                        exit_code = exit_response.exit_code or exit_code
+                    except Exception:
+                        pass
+                    break
+
+                await asyncio.sleep(self._poll_interval)
+
+            final_output = await self._terminal.current_output()
+            self._feed_output(final_output)
+        except Exception as exc:
+            error_note = f"[acp terminal error] {exc}\n"
+            self._stdout.feed_data(error_note.encode("utf-8", "replace"))
+            if exit_code is None:
+                exit_code = 1
+        finally:
+            if not exit_task.done():
+                exit_task.cancel()
+                with suppress(Exception):
+                    await exit_task
+            self._returncode = self._normalize_exit_code(exit_code)
+            self._stdout.feed_eof()
+            self._stderr.feed_eof()
+            if not self._exit_future.done():
+                self._exit_future.set_result(self._returncode)
+            with suppress(Exception):
+                await self._terminal.release()
